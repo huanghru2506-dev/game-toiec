@@ -1,433 +1,486 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>肥橘貓爆破王 v7.0 (真正多例句版)</title>
-    <style>
-        /* 核心設定 */
-        html, body {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden; position: fixed; background: #222;
-            touch-action: none; -webkit-user-select: none; user-select: none;
-            font-family: 'Segoe UI', sans-serif; color: white;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        #main-wrapper {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            width: 100%; height: 100%;
-        }
-
-        /* HUD */
-        #hud { 
-            width: 100%; max-width: 600px; padding: 8px 15px; background: #333; 
-            display: flex; justify-content: space-between; align-items: center; 
-            border-bottom: 2px solid #555; font-weight: bold; font-size: 0.9rem;
-            flex-shrink: 0; z-index: 50;
-        }
-        .ammo-box { color: #f1c40f; border: 1px solid #f1c40f; padding: 2px 8px; border-radius: 4px; }
-        #reload-btn { 
-            background: #0984e3; color: white; border: none; padding: 5px 12px; 
-            border-radius: 4px; font-weight: bold; cursor: pointer; 
-            animation: pulse-btn 2s infinite; font-size: 0.9rem;
-        }
-        @keyframes pulse-btn { 0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)} }
-
-        /* 遊戲舞台 */
-        #stage { 
-            position: relative; width: 90vmin; height: 90vmin; 
-            max-width: 600px; max-height: 600px; 
-            background: #555; border: 4px solid #000; overflow: hidden; margin: 5px 0;
-        }
-        .cell { position: absolute; width: 6.66%; height: 6.66%; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; }
-        .wall { background: #333; border: 1px solid #222; box-shadow: inset 0 0 5px #000; }
-        .brick { background: #e17055; border: 2px solid #d63031; transition: 0.2s; }
-        .door { background: #000; border: 2px dashed #fff; } 
-        .key { font-size: 1.5rem; animation: float 1s infinite alternate; }
-        @keyframes float { from{transform:translateY(0)} to{transform:translateY(-5px)} }
-
-        /* 角色 */
-        #player { 
-            position: absolute; width: 6.66%; height: 6.66%; z-index: 20; 
-            display: flex; justify-content: center; align-items: center;
-            font-size: 2rem; transition: top 0.1s linear, left 0.1s linear; 
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-        .enemy { position: absolute; width: 6.66%; height: 6.66%; z-index: 15; font-size: 1.5rem; text-align: center; transition: top 0.3s linear, left 0.3s linear; }
-        .bomb { position: absolute; width: 5%; height: 5%; margin: 0.8%; z-index: 10; background: #2d3436; border-radius: 50%; border: 2px solid #fff; animation: tick 0.5s infinite alternate; }
-        .fire { position: absolute; width: 6.66%; height: 6.66%; z-index: 12; background: rgba(255, 200, 0, 0.8); }
-        @keyframes tick { from{transform:scale(0.9)} to{transform:scale(1.1)} }
-
-        /* 控制器 */
-        #controls { 
-            width: 100%; max-width: 500px; height: 160px; 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 0 30px; flex-shrink: 0;
-        }
-        .dpad { position: relative; width: 140px; height: 140px; }
-        .dbtn { 
-            position: absolute; width: 50px; height: 50px; 
-            background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.4); 
-            border-radius: 8px; 
-        }
-        .dbtn:active { background: rgba(255,255,255,0.5); }
-        .du { top:0; left:45px; } .dd { bottom:0; left:45px; } 
-        .dl { top:45px; left:0; } .dr { top:45px; right:0; }
-
-        .act-btn { 
-            width: 90px; height: 90px; border-radius: 50%; 
-            background: #d63031; border: 4px solid #fab1a0; 
-            display: flex; justify-content: center; align-items: center; 
-            font-size: 2.5rem; box-shadow: 0 5px 0 #8c1c1c; 
-        }
-        .act-btn:active { transform: translateY(5px); box-shadow: none; }
-
-        /* 答題卡 (全螢幕) */
-        #quiz-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; display: none; justify-content: center; align-items: center; }
-        .card { background: white; color: #333; width: 90%; max-width: 450px; padding: 20px; border-radius: 15px; max-height: 90vh; overflow-y: auto; text-align: center; position: relative; }
-        .word { font-size: 2.2rem; color: #d63031; font-weight: 800; margin: 0; }
-        .meta { color: #666; margin: 5px 0 15px 0; display: flex; justify-content: center; align-items: center; gap: 10px; }
-        .btn-audio { border: 1px solid #ccc; background: #eee; border-radius: 15px; padding: 4px 12px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 5px;}
-        
-        /* 學習區樣式 (多例句) */
-        .sent-box { background: #f1f2f6; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 15px; border-left: 5px solid #0984e3; display: none; }
-        .sent-row { margin-bottom: 10px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
-        .sent-row:last-child { border-bottom: none; }
-        .en-text { font-weight: bold; font-size: 1.05rem; color: #2d3436; }
-        .cn-text { color: #636e72; font-size: 0.9rem; margin-top: 2px; }
-        
-        .opt-btn { width: 100%; padding: 15px; margin: 6px 0; border: 1px solid #ccc; background: #fff; border-radius: 8px; font-size: 1.1rem; text-align: left; font-weight: bold; cursor: pointer; }
-        .opt-btn.correct { background: #00b894; color: white; border-color: #00b894; }
-        .opt-btn.wrong { background: #d63031; color: white; border-color: #d63031; }
-        
-        /* 手動關閉按鈕 */
-        #close-quiz-btn {
-            display: none; width: 100%; padding: 15px; margin-top: 15px;
-            background: #0984e3; color: white; border: none; border-radius: 8px;
-            font-size: 1.2rem; font-weight: bold; cursor: pointer;
-            box-shadow: 0 4px 0 #0762a8;
-        }
-        #close-quiz-btn:active { transform: translateY(4px); box-shadow: none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>肥橘貓爆破王 v8.0 (穩定版)</title>
+<style>
+    html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; position:fixed; background:#222; font-family:'Segoe UI',sans-serif; color:white; touch-action:none; -webkit-user-select:none; user-select:none; }
+    #main-wrapper { display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%; }
+    #hud { width:100%; max-width:600px; padding:8px 15px; background:#333; display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #555; font-weight:bold; font-size:0.9rem; flex-shrink:0; }
+    .ammo-box { color:#f1c40f; border:1px solid #f1c40f; padding:2px 8px; border-radius:4px; }
+    #reload-btn { background:#0984e3; color:white; border:none; padding:5px 12px; border-radius:4px; font-weight:bold; font-size:0.9rem; animation:pulse 2s infinite; }
+    @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)} }
+    #stage { position:relative; width:90vmin; height:90vmin; max-width:600px; max-height:600px; background:#555; border:4px solid #000; overflow:hidden; margin:5px 0; }
+    .cell { position:absolute; width:6.66%; height:6.66%; display:flex; justify-content:center; align-items:center; font-size:1.5rem; }
+    .wall { background:#333; border:1px solid #222; box-shadow:inset 0 0 5px #000; }
+    .brick { background:#e17055; border:2px solid #d63031; transition:0.2s; }
+    .door { background:#000; border:2px dashed #fff; } 
+    .key { font-size:1.5rem; animation:float 1s infinite alternate; }
+    @keyframes float { from{transform:translateY(0)} to{transform:translateY(-5px)} }
+    #player { position:absolute; width:6.66%; height:6.66%; z-index:20; display:flex; justify-content:center; align-items:center; font-size:2rem; transition:top 0.1s linear, left 0.1s linear; text-shadow:2px 2px 4px rgba(0,0,0,0.5); }
+    .enemy { position:absolute; width:6.66%; height:6.66%; z-index:15; font-size:1.5rem; text-align:center; transition:top 0.3s linear, left 0.3s linear; }
+    .bomb { position:absolute; width:5%; height:5%; margin:0.8%; z-index:10; background:#2d3436; border-radius:50%; border:2px solid #fff; animation:tick 0.5s infinite alternate; }
+    .fire { position:absolute; width:6.66%; height:6.66%; z-index:12; background:rgba(255,200,0,0.8); }
+    @keyframes tick { from{transform:scale(0.9)} to{transform:scale(1.1)} }
+    #controls { width:100%; max-width:500px; height:160px; display:flex; justify-content:space-between; align-items:center; padding:0 30px; flex-shrink:0; }
+    .dpad { position:relative; width:140px; height:140px; }
+    .dbtn { position:absolute; width:50px; height:50px; background:rgba(255,255,255,0.15); border:2px solid rgba(255,255,255,0.4); border-radius:8px; }
+    .dbtn:active { background:rgba(255,255,255,0.5); }
+    .du { top:0; left:45px; } .dd { bottom:0; left:45px; } .dl { top:45px; left:0; } .dr { top:45px; right:0; }
+    .act-btn { width:90px; height:90px; border-radius:50%; background:#d63031; border:4px solid #fab1a0; display:flex; justify-content:center; align-items:center; font-size:2.5rem; box-shadow:0 5px 0 #8c1c1c; }
+    .act-btn:active { transform:translateY(5px); box-shadow:none; }
+    #quiz-layer { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:100; display:none; justify-content:center; align-items:center; }
+    .card { background:white; color:#333; width:90%; max-width:450px; padding:15px; border-radius:15px; max-height:95vh; overflow-y:auto; text-align:center; position:relative; }
+    .word { font-size:2rem; color:#d63031; font-weight:800; margin:0; }
+    .meta { color:#666; margin:5px 0 10px 0; display:flex; justify-content:center; align-items:center; gap:10px; }
+    .btn-audio { border:1px solid #ccc; background:#eee; border-radius:15px; padding:4px 12px; font-size:0.9rem; cursor:pointer; }
+    .sent-box { background:#f1f2f6; padding:10px; border-radius:8px; text-align:left; margin-bottom:10px; border-left:5px solid #0984e3; display:none; max-height:200px; overflow-y:auto; }
+    .sent-row { margin-bottom:8px; border-bottom:1px dashed #ccc; padding-bottom:5px; }
+    .en-text { font-weight:bold; font-size:1rem; color:#2d3436; }
+    .cn-text { color:#636e72; font-size:0.9rem; margin-top:2px; }
+    .opt-btn { width:100%; padding:12px; margin:5px 0; border:1px solid #ccc; background:#fff; border-radius:8px; font-size:1rem; text-align:left; font-weight:bold; }
+    .opt-btn.correct { background:#00b894; color:white; border-color:#00b894; }
+    .opt-btn.wrong { background:#d63031; color:white; border-color:#d63031; }
+    #close-quiz-btn { display:none; width:100%; padding:12px; margin-top:10px; background:#0984e3; color:white; border:none; border-radius:8px; font-size:1.1rem; font-weight:bold; }
+</style>
 </head>
 <body>
-
     <div id="main-wrapper">
         <div id="hud">
-            <span>❤️<span id="ui-hp">3</span></span>
-            <span>Lv.<span id="ui-lv">1</span></span>
-            <span>🔑<span id="ui-key">0</span></span>
-            <span class="ammo-box">💣<span id="ui-ammo">3</span></span>
-            <button id="reload-btn" onclick="triggerQuiz()">+ 補給(學習)</button>
+            <span>❤️<span id="ui-hp">3</span></span> <span>Lv.<span id="ui-lv">1</span></span>
+            <span>🔑<span id="ui-key">0</span></span> <span class="ammo-box">💣<span id="ui-ammo">5</span></span>
+            <button id="reload-btn" onclick="triggerQuiz()">+ 補給</button>
         </div>
-
         <div id="stage">
-            <div id="layer-grid"></div>
-            <div id="layer-item"></div>
-            <div id="layer-obj"></div>
-            <div id="layer-ent"></div>
-            <div id="player">🐱</div>
+            <div id="layer-grid"></div><div id="layer-item"></div>
+            <div id="layer-obj"></div><div id="layer-ent"></div><div id="player">🐱</div>
         </div>
-
         <div id="controls">
             <div class="dpad">
-                <div class="dbtn du" ontouchstart="input.u=true; event.preventDefault()" ontouchend="input.u=false"></div>
-                <div class="dbtn dd" ontouchstart="input.d=true; event.preventDefault()" ontouchend="input.d=false"></div>
-                <div class="dbtn dl" ontouchstart="input.l=true; event.preventDefault()" ontouchend="input.l=false"></div>
-                <div class="dbtn dr" ontouchstart="input.r=true; event.preventDefault()" ontouchend="input.r=false"></div>
+                <div class="dbtn du" ontouchstart="input.u=true;e.preventDefault()" ontouchend="input.u=false"></div>
+                <div class="dbtn dd" ontouchstart="input.d=true;e.preventDefault()" ontouchend="input.d=false"></div>
+                <div class="dbtn dl" ontouchstart="input.l=true;e.preventDefault()" ontouchend="input.l=false"></div>
+                <div class="dbtn dr" ontouchstart="input.r=true;e.preventDefault()" ontouchend="input.r=false"></div>
             </div>
-            <div class="act-btn" ontouchstart="placeBomb(); event.preventDefault()">💣</div>
+            <div class="act-btn" ontouchstart="placeBomb();e.preventDefault()">💣</div>
         </div>
     </div>
-
     <div id="quiz-layer">
         <div class="card">
-            <div style="font-size:0.8rem; color:#aaa; margin-bottom:5px;">TOEIC 記憶特訓</div>
+            <div style="font-size:0.8rem;color:#aaa">TOEIC 記憶特訓</div>
             <h1 class="word" id="q-w">Word</h1>
-            <div class="meta">
-                <span id="q-p">/pho/</span> <span id="q-t">n.</span>
-                <button class="btn-audio" onclick="speak('word')">🔊 單字</button>
-            </div>
-            
+            <div class="meta"><span id="q-p">/pho/</span><span id="q-t">n.</span><button class="btn-audio" onclick="speak('word')">🔊</button></div>
             <div id="opt-box"></div>
-
             <div id="learn-area" class="sent-box">
-                <div style="font-size:0.8rem; color:#888; margin-bottom:5px;">★ 必考搭配詞 (Collocations)</div>
                 <div id="sent-content"></div>
-                <button class="btn-audio" style="width:100%; margin-top:10px; justify-content: center;" onclick="speak('sent')">🔊 播放整組例句</button>
+                <button class="btn-audio" style="width:100%;margin-top:5px" onclick="speak('sent')">🔊 播放例句</button>
             </div>
-
             <button id="close-quiz-btn" onclick="closeQuiz()">✅ 我記住了</button>
         </div>
     </div>
+<script>
+// 防誤觸
+document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault());
+document.addEventListener('dblclick',e=>e.preventDefault());
 
-    <script>
-        // 防誤觸
-        document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
-        document.addEventListener('gesturestart', e => e.preventDefault());
-        document.addEventListener('dblclick', e => e.preventDefault());
+// === 大量資料庫 (300+ 組) ===
+const RAW=[
+"Agenda|n.|議程|set agenda^設定議程^agenda item^議程項目^hidden agenda^隱藏的動機",
+"Budget|n.|預算|tight budget^預算吃緊^over budget^超出預算^budget cut^刪減預算",
+"Colleague|n.|同事|senior colleague^資深同事^trusted colleague^信賴的同事^meet colleague^見同事",
+"Deadline|n.|期限|meet deadline^趕上期限^miss deadline^錯過期限^tight deadline^緊迫期限",
+"Executive|n.|主管|chief executive^執行長^senior executive^資深主管^account executive^業務專員",
+"Feedback|n.|回饋|give feedback^給予回饋^positive feedback^正面回饋^customer feedback^客戶回饋",
+"Guarantee|v.|保證|satisfaction guaranteed^保證滿意^money back^退款保證^under guarantee^保固內",
+"Implement|v.|實施|implement plan^實施計畫^implement changes^實施變更^fully implement^完全實施",
+"Lucrative|adj.|賺錢的|lucrative deal^賺錢的交易^lucrative market^利潤豐厚的市場^lucrative job^肥缺",
+"Merger|n.|合併|merger acquisition^併購^proposed merger^提議的合併^merger talks^合併談判",
+"Negotiate|v.|談判|negotiate price^談判價格^negotiate contract^談判合約^negotiate terms^談判條款",
+"Recruit|v.|招募|recruit staff^招募員工^actively recruit^積極招募^new recruit^新兵",
+"Resume|n.|履歷|submit resume^提交履歷^send resume^寄履歷^resume sample^履歷範本",
+"Penalty|n.|罰款|pay penalty^付罰款^death penalty^死刑^face penalty^面臨處罰",
+"Itinerary|n.|行程|travel itinerary^旅遊行程^plan itinerary^規劃行程^detailed itinerary^詳細行程",
+"Asset|n.|資產|valuable asset^寶貴資產^liquid asset^流動資產^company asset^公司資產",
+"Deficit|n.|赤字|trade deficit^貿易赤字^budget deficit^預算赤字^reduce deficit^減少赤字",
+"Portfolio|n.|作品集|investment portfolio^投資組合^design portfolio^設計作品集^build portfolio^建立作品集",
+"Refund|n.|退款|full refund^全額退款^demand refund^要求退款^non-refundable^不可退款",
+"Valid|adj.|有效的|valid passport^有效護照^valid reason^正當理由^remain valid^保持有效",
+"Acquire|v.|收購|acquire company^收購公司^acquire skills^獲得技能^acquire knowledge^獲取知識",
+"Capacity|n.|容量|full capacity^滿載^storage capacity^儲存容量^seating capacity^座位數",
+"Collaborate|v.|合作|collaborate with^與...合作^close collaboration^密切合作^collaborate on^合作某事",
+"Fluctuate|v.|波動|prices fluctuate^價格波動^market fluctuates^市場波動^fluctuate wildly^劇烈波動",
+"Mandatory|adj.|強制的|mandatory training^強制訓練^mandatory retirement^強制退休^it is mandatory^這是強制的",
+"Launch|v.|發布|product launch^產品發布^launch campaign^發起活動^launch date^發布日",
+"Nominate|v.|提名|nominate candidate^提名候選人^be nominated^被提名^nominate for award^提名獎項",
+"Renovate|v.|整修|renovate house^整修房子^newly renovated^新裝修的^closed for renovation^整修關閉",
+"Allocate|v.|分配|allocate funds^分配資金^allocate resources^分配資源^allocate time^分配時間",
+"Brochure|n.|小冊子|read brochure^閱讀小冊子^travel brochure^旅遊手冊^print brochure^印製手冊",
+"Comply|v.|遵守|comply with rules^遵守規則^fail to comply^未能遵守^strict compliance^嚴格遵守",
+"Expansion|n.|擴張|business expansion^業務擴張^rapid expansion^快速擴張^overseas expansion^海外擴張",
+"Fiscal|adj.|財政的|fiscal year^會計年度^fiscal policy^財政政策^fiscal crisis^財政危機",
+"Gross|adj.|總共的|gross income^總收入^gross profit^毛利^gross weight^總重",
+"Inspect|v.|檢查|inspect goods^檢查貨物^inspect site^視察現場^closely inspect^仔細檢查",
+"Kickoff|n.|開始|kickoff meeting^啟動會議^project kickoff^專案啟動^kickoff time^開賽時間",
+"Logistics|n.|物流|handle logistics^處理物流^logistics company^物流公司^logistics manager^物流經理",
+"Monopoly|n.|壟斷|market monopoly^市場壟斷^have a monopoly^擁有壟斷權^break monopoly^打破壟斷",
+"Overhead|n.|開支|reduce overhead^減少經常開支^overhead costs^營運成本^low overhead^低營運成本",
+"Patent|n.|專利|file patent^申請專利^patent pending^專利申請中^patent lawyer^專利律師",
+"Quarterly|adj.|季度的|quarterly report^季度報告^quarterly meeting^季度會議^paid quarterly^按季支付",
+"Revenue|n.|營收|annual revenue^年度營收^generate revenue^產生營收^tax revenue^稅收",
+"Strategy|n.|策略|marketing strategy^行銷策略^business strategy^商業策略^develop strategy^發展策略",
+"Trademark|n.|商標|register trademark^註冊商標^trademark infringement^商標侵權^company trademark^公司商標",
+"Unanimous|adj.|一致的|unanimous vote^全票通過^unanimous decision^一致決定^reached agreement^達成一致",
+"Vacancy|n.|空缺|job vacancy^職位空缺^no vacancy^客滿^fill vacancy^填補空缺",
+"Warranty|n.|保固|under warranty^在保固內^extended warranty^延長保固^void warranty^保固失效",
+"Affordable|adj.|負擔得起|affordable price^實惠價格^affordable housing^經濟適用房^make it affordable^使其負擔得起",
+"Boost|v.|促進|boost sales^促進銷售^boost confidence^增強信心^boost morale^提振士氣",
+"Consumer|n.|消費者|consumer demand^消費者需求^consumer behavior^消費者行為^consumer rights^消費者權益",
+"Diverse|adj.|多樣的|diverse culture^多元文化^diverse range^多樣範圍^diverse background^多元背景",
+"Facility|n.|設施|sports facility^體育設施^production facility^生產設施^medical facility^醫療設施",
+"Global|adj.|全球的|global market^全球市場^global economy^全球經濟^global warming^全球暖化",
+"Hedge|v.|避險|hedge fund^避險基金^hedge against^規避...^hedge risk^對沖風險",
+"Jeopardize|v.|危及|jeopardize job^危及工作^jeopardize safety^危及安全^jeopardize future^危及未來",
+"Liability|n.|責任|legal liability^法律責任^admit liability^承認責任^limited liability^有限責任",
+"Outsource|v.|外包|outsource work^外包工作^outsource production^外包生產^cost of outsourcing^外包成本",
+"Productivity|n.|生產力|increase productivity^提高生產力^high productivity^高生產力^productivity tool^生產力工具",
+"Quota|n.|配額|sales quota^銷售配額^meet quota^達到配額^import quota^進口配額",
+"Recession|n.|衰退|economic recession^經濟衰退^deep recession^嚴重衰退^global recession^全球衰退",
+"Subsidy|n.|補貼|government subsidy^政府補貼^farming subsidy^農業補貼^apply for subsidy^申請補貼",
+"Tariff|n.|關稅|impose tariff^徵收關稅^import tariff^進口關稅^high tariff^高關稅",
+"Venture|n.|冒險|joint venture^合資企業^business venture^商業冒險^venture capital^創投資本",
+"Wholesale|n.|批發|wholesale price^批發價^wholesale market^批發市場^buy wholesale^批發購買",
+"Appraisal|n.|評估|performance appraisal^績效評估^staff appraisal^員工評估^get appraisal^獲得評估",
+"Blueprint|n.|藍圖|design blueprint^設計藍圖^blueprint for success^成功藍圖^project blueprint^專案藍圖",
+"Commission|n.|佣金|sales commission^銷售佣金^earn commission^賺取佣金^commission rate^佣金率",
+"Delegate|v.|委派|delegate tasks^委派任務^delegate authority^下放權力^learn to delegate^學習委派",
+"Endorse|v.|背書|endorse product^代言產品^endorse check^背書支票^fully endorse^完全支持",
+"Feasible|adj.|可行的|feasible plan^可行的計畫^technically feasible^技術上可行^economically feasible^經濟上可行",
+"Inventory|n.|庫存|check inventory^盤點庫存^inventory control^庫存管理^reduce inventory^減少庫存",
+"Lease|n.|租約|sign lease^簽署租約^renew lease^續約^lease agreement^租賃協議",
+"Maintenance|n.|維護|regular maintenance^定期維護^maintenance cost^維護成本^high maintenance^難伺候的",
+"Payroll|n.|薪資單|payroll department^薪資部門^on the payroll^在職人員^meet payroll^發薪水",
+"Reimburse|v.|核銷|reimburse expenses^核銷費用^reimburse cost^退還成本^get reimbursed^獲得核銷",
+"Tenant|n.|房客|new tenant^新房客^tenant rights^房客權益^evict tenant^驅逐房客",
+"Vendor|n.|供應商|preferred vendor^首選供應商^vendor list^供應商名單^street vendor^街頭攤販",
+"Defect|n.|缺陷|product defect^產品缺陷^birth defect^先天缺陷^zero defect^零缺陷",
+"Eligible|adj.|資格|eligible for^有資格^eligible voter^合格選民^become eligible^獲得資格",
+"Forecast|n.|預測|weather forecast^天氣預報^sales forecast^銷售預測^economic forecast^經濟預測",
+"Invoice|n.|發票|issue invoice^開發票^pay invoice^付發票^invoice amount^發票金額",
+"Landlord|n.|房東|pay landlord^付房東^landlord approval^房東同意^contact landlord^聯絡房東",
+"Pension|n.|退休金|pension fund^退休基金^state pension^國家養老金^pension plan^退休計畫",
+"Transaction|n.|交易|secure transaction^安全交易^bank transaction^銀行交易^online transaction^線上交易",
+"Acquisition|n.|收購|mergers and acquisitions^併購^new acquisition^新收購^make acquisition^進行收購",
+"Benchmark|n.|基準|set benchmark^設定基準^quality benchmark^品質基準^industry benchmark^行業基準",
+"Competitor|n.|對手|main competitor^主要對手^beat competitor^擊敗對手^market competitor^市場競爭者",
+"Dividend|n.|股利|pay dividend^發放股利^stock dividend^股票股利^annual dividend^年度股利",
+"Equity|n.|股權|private equity^私募股權^brand equity^品牌資產^shareholder equity^股東權益",
+"Hypothesis|n.|假設|test hypothesis^測試假設^working hypothesis^工作假設^support hypothesis^支持假設",
+"Liability|n.|責任|legal liability^法律責任^admit liability^承認責任^product liability^產品責任",
+"Mentoring|n.|指導|mentoring program^導師計畫^provide mentoring^提供指導^peer mentoring^同儕指導",
+"Network|v.|人脈|social network^社交網絡^computer network^電腦網絡^build network^建立人脈",
+"Quarter|n.|季度|first quarter^第一季^fourth quarter^第四季^quarterly results^季度結果",
+"Subsidiary|n.|子公司|foreign subsidiary^外國子公司^wholly owned^全資子公司^parent company^母公司",
+"Turnover|n.|流動率|staff turnover^員工流動率^high turnover^高流動率^annual turnover^年營業額",
+"Voucher|n.|優惠券|gift voucher^禮券^travel voucher^旅遊券^cash voucher^現金券",
+"Workshop|n.|研討會|training workshop^培訓研討會^attend workshop^參加研討會^run a workshop^舉辦研討會",
+"Apartment|n.|公寓|rent apartment^租公寓^apartment building^公寓大樓^studio apartment^套房",
+"Architect|n.|建築師|famous architect^著名建築師^chief architect^首席建築師^landscape architect^景觀建築師",
+"Construction|n.|建築|under construction^施工中^construction site^工地^construction worker^建築工人",
+"Elevator|n.|電梯|take elevator^搭電梯^elevator pitch^電梯簡報^freight elevator^貨梯",
+"Estate|n.|地產|real estate^房地產^industrial estate^工業區^housing estate^住宅區",
+"Furniture|n.|家具|office furniture^辦公家具^antique furniture^古董家具^move furniture^搬家具",
+"Property|n.|財產|private property^私人財產^intellectual property^智慧財產^property tax^財產稅",
+"Resident|n.|居民|local resident^當地居民^permanent resident^永久居民^resident permit^居留證",
+"Structure|n.|結構|organization structure^組織結構^steel structure^鋼結構^price structure^價格結構",
+"Accountant|n.|會計|chartered accountant^特許會計師^hire accountant^聘請會計^chief accountant^會計主任",
+"Chef|n.|主廚|head chef^行政主廚^sous chef^副主廚^pastry chef^甜點師",
+"Mechanic|n.|技工|car mechanic^汽車技工^auto mechanic^汽車維修工^call mechanic^叫技工",
+"Plumber|n.|水電工|call plumber^叫水電工^master plumber^資深水電工^plumber tools^水電工具",
+"Politician|n.|政客|local politician^地方政客^corrupt politician^腐敗政客^career politician^職業政客",
+"Professor|n.|教授|university professor^大學教授^assistant professor^助理教授^retired professor^退休教授",
+"Receptionist|n.|櫃台|hotel receptionist^飯店櫃台^medical receptionist^診所櫃台^ask receptionist^問櫃台",
+"Scientist|n.|科學家|research scientist^研究科學家^social scientist^社會科學家^data scientist^數據科學家",
+"Secretary|n.|秘書|private secretary^私人秘書^legal secretary^法律秘書^executive secretary^行政秘書",
+"Airport|n.|機場|international airport^國際機場^airport shuttle^機場接駁^airport security^機場安檢",
+"Baggage|n.|行李|baggage claim^行李提領^excess baggage^超重行李^check baggage^托運行李",
+"Cancel|v.|取消|cancel flight^取消班機^cancel reservation^取消預約^cancel meeting^取消會議",
+"Delay|n.|延誤|flight delay^班機延誤^traffic delay^交通延誤^without delay^毫不延遲",
+"Depart|v.|出發|depart on time^準時出發^depart from^從...出發^flight departs^班機起飛",
+"Destination|n.|目的地|final destination^最終目的地^tourist destination^旅遊勝地^reach destination^抵達目的地",
+"Flight|n.|班機|book flight^訂機票^connecting flight^轉機^cancel flight^取消班機",
+"Luggage|n.|行李|hand luggage^手提行李^lost luggage^遺失行李^pack luggage^打包行李",
+"Passport|n.|護照|valid passport^有效護照^renew passport^換護照^passport control^護照查驗",
+"Reservation|n.|預約|make reservation^預約^confirm reservation^確認預約^cancel reservation^取消預約",
+"Route|n.|路線|bus route^公車路線^scenic route^風景路線^plan route^規劃路線",
+"Shuttle|n.|接駁車|shuttle bus^接駁巴士^space shuttle^太空梭^airport shuttle^機場接駁",
+"Suitcase|n.|手提箱|pack suitcase^打包手提箱^heavy suitcase^很重的手提箱^carry suitcase^提手提箱",
+"Ticket|n.|票|one-way ticket^單程票^return ticket^來回票^book ticket^訂票",
+"Tour|n.|旅遊|guided tour^導覽^city tour^城市旅遊^world tour^世界巡迴",
+"Visa|n.|簽證|tourist visa^觀光簽證^apply for visa^申請簽證^student visa^學生簽證",
+"Appliance|n.|家電|kitchen appliance^廚房家電^household appliance^家用電器^electrical appliance^電器",
+"Attire|n.|服裝|formal attire^正式服裝^business attire^商務服裝^proper attire^適當服裝",
+"Beverage|n.|飲料|food and beverage^餐飲^alcoholic beverage^含酒精飲料^hot beverage^熱飲",
+"Catering|n.|外燴|catering service^外燴服務^catering company^外燴公司^provide catering^提供外燴",
+"Commute|v.|通勤|daily commute^每日通勤^long commute^長途通勤^commute to work^通勤上班",
+"Currency|n.|貨幣|foreign currency^外幣^local currency^當地貨幣^currency exchange^貨幣兌換",
+"Deduction|n.|扣除|tax deduction^稅收扣除^salary deduction^薪資扣除^standard deduction^標準扣除",
+"Duration|n.|期間|short duration^短期間^duration of stay^停留期間^average duration^平均期間",
+"Fare|n.|票價|bus fare^公車票價^train fare^火車票價^air fare^機票價格",
+"Landmark|n.|地標|famous landmark^著名地標^historic landmark^歷史地標^city landmark^城市地標",
+"Scenery|n.|風景|beautiful scenery^美麗風景^mountain scenery^山景^enjoy scenery^欣賞風景",
+"Transit|n.|運輸|public transit^大眾運輸^in transit^運輸中^mass transit^大眾捷運",
+"Cubicle|n.|隔間|office cubicle^辦公隔間^work in cubicle^在隔間工作^cubicle wall^隔間牆",
+"Document|n.|文件|sign document^簽署文件^legal document^法律文件^attach document^附加文件",
+"Folder|n.|資料夾|file folder^檔案夾^new folder^新資料夾^organize folder^整理資料夾",
+"Photocopier|n.|影印機|use photocopier^用影印機^jammed photocopier^卡紙的影印機^color photocopier^彩色影印機",
+"Presentation|n.|簡報|give presentation^做簡報^slide presentation^投影片簡報^oral presentation^口頭簡報",
+"Stationery|n.|文具|office stationery^辦公文具^stationery shop^文具店^order stationery^訂購文具",
+"Applicant|n.|申請人|job applicant^求職者^successful applicant^錄取者^screen applicants^篩選申請人",
+"Assistant|n.|助理|personal assistant^私人助理^executive assistant^行政助理^research assistant^研究助理",
+"Certificate|n.|證書|birth certificate^出生證明^medical certificate^診斷書^gift certificate^禮券",
+"Director|n.|總監|marketing director^行銷總監^board of directors^董事會^managing director^總經理",
+"Occupation|n.|職業|current occupation^目前職業^state occupation^說明職業^hazardous occupation^危險職業",
+"Supervisor|n.|主管|direct supervisor^直屬主管^report to supervisor^向主管報告^shift supervisor^值班主管",
+"Ambitious|adj.|有野心|ambitious goal^野心勃勃的目標^ambitious plan^宏大的計畫^ambitious young man^有為青年",
+"Cautious|adj.|謹慎的|be cautious^謹慎^cautious approach^謹慎的方法^cautious optimism^審慎樂觀",
+"Diligent|adj.|勤勉的|diligent student^勤勉的學生^diligent worker^勤勞的工人^do diligently^勤奮地做",
+"Punctual|adj.|準時的|be punctual^要準時^always punctual^總是準時^punctual arrival^準時到達"
+];
 
-        // ==========================================
-        // 1. 三句式資料庫 (使用 ^ 分隔)
-        // ==========================================
-        const RAW_DATA = [
-            "Agenda|/əˈdʒen.də/|n.|議程|The agenda is set.^議程已設定。^item on the agenda^議程上的項目^copy of the agenda^議程的副本",
-            "Budget|/ˈbʌdʒ.ɪt/|n.|預算|within budget^在預算內^tight budget^預算吃緊^budget cut^預算刪減",
-            "Colleague|/ˈkɑː.liːɡ/|n.|同事|senior colleague^資深同事^trusted colleague^值得信賴的同事^meet a colleague^見一位同事",
-            "Deadline|/ˈded.laɪn/|n.|截止期限|meet the deadline^趕上截止期限^miss the deadline^錯過截止期限^tight deadline^緊迫的期限",
-            "Executive|/ɪɡˈzek.jə.tɪv/|n.|高階主管|chief executive^執行長^senior executive^資深主管^executive decision^決策",
-            "Feedback|/ˈfiːd.bæk/|n.|回饋|give feedback^給予回饋^positive feedback^正面的回饋^customer feedback^客戶回饋",
-            "Guarantee|/ˌɡær.ənˈtiː/|v.|保證|satisfaction guaranteed^保證滿意^money-back guarantee^退款保證^under guarantee^在保固期內",
-            "Implement|/ˈɪm.plə.ment/|v.|實施|implement a plan^實施計畫^implement changes^實施變更^fully implemented^完全實施",
-            "Lucrative|/ˈluː.krə.tɪv/|adj.|賺錢的|lucrative business^賺錢的生意^lucrative contract^利潤豐厚的合約^highly lucrative^非常賺錢",
-            "Merger|/ˈmɝː.dʒɚ/|n.|合併|merger and acquisition^合併與收購^proposed merger^提議的合併^merger talks^合併談判",
-            "Negotiate|/nəˈɡoʊ.ʃi.eɪt/|v.|談判|negotiate a price^談判價格^negotiate a contract^談判合約^negotiate terms^談判條款",
-            "Recruit|/rɪˈkruːt/|v.|招募|recruit new staff^招募新員工^recruit talent^招募人才^actively recruit^積極招募",
-            "Resume|/rɪˈzuːm/|n.|履歷表|submit a resume^提交履歷^send a resume^寄送履歷^resume and cover letter^履歷與求職信",
-            "Penalty|/ˈpen.əl.ti/|n.|罰款|pay a penalty^支付罰款^face a penalty^面臨罰款^death penalty^死刑",
-            "Itinerary|/laɪˈə.bəl/|n.|行程表|travel itinerary^旅遊行程^detailed itinerary^詳細行程^plan an itinerary^規劃行程",
-            "Asset|/ˈæs.et/|n.|資產|valuable asset^寶貴資產^company asset^公司資產^liquid asset^流動資產",
-            "Deficit|/ˈdef.ə.sɪt/|n.|赤字|budget deficit^預算赤字^trade deficit^貿易赤字^reduce the deficit^減少赤字",
-            "Portfolio|/ˌpɔːrtˈfoʊ.li.oʊ/|n.|作品集/投資組合|investment portfolio^投資組合^design portfolio^設計作品集^diverse portfolio^多樣化的組合",
-            "Refund|/ˈriː.fʌnd/|n.|退款|full refund^全額退款^demand a refund^要求退款^non-refundable^不可退款的",
-            "Valid|/ˈvæl.ɪd/|adj.|有效的|valid passport^有效護照^valid reason^正當理由^remain valid^保持有效",
-            "Acquire|/əˈkwaɪɚ/|v.|收購/獲得|acquire a company^收購公司^acquire skills^獲得技能^acquire knowledge^獲取知識",
-            "Bankruptcy|/ˈbæŋ.krʌpt.si/|n.|破產|file for bankruptcy^申請破產^face bankruptcy^面臨破產^declare bankruptcy^宣告破產",
-            "Capacity|/kəˈpæs.ə.t̬i/|n.|容量/能力|full capacity^產能滿載^seating capacity^座位容量^storage capacity^儲存容量",
-            "Collaborate|/kəˈlæb.ə.reɪt/|v.|合作|collaborate with^與...合作^collaborate on^在...上合作^close collaboration^密切合作",
-            "Designate|/ˈdez.ɪɡ.neɪt/|v.|指定|designated area^指定區域^designated driver^指定駕駛^designated smoking area^指定吸菸區",
-            "Fluctuate|/ˈflʌk.tʃu.eɪt/|v.|波動|prices fluctuate^價格波動^fluctuate wildly^劇烈波動^market fluctuations^市場波動",
-            "Mandatory|/ˈmæn.də.tɔː.ri/|adj.|強制的|mandatory training^強制訓練^mandatory retirement^強制退休^it is mandatory^這是強制的",
-            "Launch|/lɑːntʃ/|v.|發布/上市|launch a product^發布產品^launch a campaign^發起活動^official launch^正式發布",
-            "Nominate|/ˈnɑː.mə.neɪt/|v.|提名|nominate a candidate^提名候選人^nominate for an award^提名獎項^be nominated^被提名",
-            "Renovate|/ˈren.ə.veɪt/|v.|整修|renovate the office^整修辦公室^newly renovated^新裝修的^closed for renovation^關閉整修中"
-        ];
+// 解析資料庫
+const DB = RAW.map(line => {
+    const p = line.split('|');
+    const sents = p[4].split('^');
+    let formattedSents = [];
+    for(let i=0; i<sents.length; i+=2) {
+        if(sents[i+1]) formattedSents.push({ en: sents[i], cn: sents[i+1] });
+    }
+    return { w: p[0], t: p[1], m: p[2], sentences: formattedSents };
+});
 
-        // 資料解析
-        const DB = RAW_DATA.map(line => {
-            const p = line.split('|');
-            const sents = p[4].split('^');
-            let formattedSents = [];
-            for(let i=0; i<sents.length; i+=2) {
-                if(sents[i+1]) formattedSents.push({ en: sents[i], cn: sents[i+1] });
-            }
-            return { w: p[0], pho: p[1], t: p[2], m: p[3], sentences: formattedSents };
-        });
+// 遊戲核心邏輯
+const GRID = 15;
+const TILE = 6.666;
+const STATE = { lv:1, hp:3, key:0, pause:false, bombs:1, range:2, ammo:5 }; 
+let map=[], enemies=[], bombs=[], player={gx:1,gy:1}, curQ=null;
+const input = {u:false,d:false,l:false,r:false};
 
-        // 遊戲核心
-        const GRID = 15, TILE = 6.666;
-        const STATE = { lv:1, hp:3, key:0, pause:false, bombs:1, range:2, ammo:5 }; 
-        let map=[], enemies=[], bombs=[], player={gx:1,gy:1,el:null}, curQ=null;
-        const input = {u:false,d:false,l:false,r:false};
+const dom = {
+    grid: document.getElementById('layer-grid'),
+    item: document.getElementById('layer-item'),
+    obj: document.getElementById('layer-obj'),
+    ent: document.getElementById('layer-ent'),
+    player: document.getElementById('player'),
+    quiz: document.getElementById('quiz-layer'),
+    hud: { hp: document.getElementById('ui-hp'), lv: document.getElementById('ui-lv'), key: document.getElementById('ui-key'), ammo: document.getElementById('ui-ammo') },
+    q: { w: document.getElementById('q-w'), t: document.getElementById('q-t'), box: document.getElementById('opt-box') },
+    learn: document.getElementById('learn-area'),
+    learnContent: document.getElementById('sent-content'),
+    closeBtn: document.getElementById('close-quiz-btn')
+};
 
-        const dom = {
-            grid: document.getElementById('layer-grid'),
-            item: document.getElementById('layer-item'),
-            obj: document.getElementById('layer-obj'),
-            ent: document.getElementById('layer-ent'),
-            player: document.getElementById('player'),
-            quiz: document.getElementById('quiz-layer'),
-            hud: { hp: document.getElementById('ui-hp'), lv: document.getElementById('ui-lv'), key: document.getElementById('ui-key'), ammo: document.getElementById('ui-ammo') },
-            q: { w: document.getElementById('q-w'), p: document.getElementById('q-p'), t: document.getElementById('q-t'), box: document.getElementById('opt-box') },
-            learn: document.getElementById('learn-area'),
-            learnContent: document.getElementById('sent-content'),
-            closeBtn: document.getElementById('close-quiz-btn')
-        };
+// 載入圖片 (移除外部依賴，使用內建貓咪)
+dom.player.innerText = '🐱';
 
-        function init() { startLevel(1); loop(); }
+function init() { startLevel(1); loop(); }
 
-        function startLevel(lv) {
-            STATE.lv=lv; STATE.key=0; STATE.pause=false; STATE.range=2+Math.floor(lv/3);
-            dom.grid.innerHTML=''; dom.item.innerHTML=''; dom.obj.innerHTML=''; dom.ent.innerHTML='';
-            bombs=[]; enemies=[]; map=[];
+function startLevel(lv) {
+    STATE.lv = lv; STATE.key = 0; STATE.pause = false;
+    STATE.range = 2 + Math.floor(lv/3);
+    
+    dom.grid.innerHTML=''; dom.item.innerHTML=''; dom.obj.innerHTML=''; dom.ent.innerHTML='';
+    bombs=[]; enemies=[]; map=[];
 
-            for(let y=0; y<GRID; y++) {
-                let row = [];
-                for(let x=0; x<GRID; x++) {
-                    const el=document.createElement('div'); el.className='cell';
-                    el.style.left=(x*TILE)+'%'; el.style.top=(y*TILE)+'%';
-                    if(x===0||x===GRID-1||y===0||y===GRID-1||(x%2===0&&y%2===0)) { row.push(1); el.classList.add('wall'); }
-                    else if(x<3&&y<3) { row.push(0); }
-                    else { if(Math.random()<0.3) { row.push(2); el.classList.add('brick'); } else row.push(0); }
-                    dom.grid.appendChild(el);
-                }
-                map.push(row);
-            }
-
-            let bricks=[]; for(let y=0; y<GRID; y++) for(let x=0; x<GRID; x++) if(map[y][x]===2) bricks.push({x,y});
-            if(bricks.length>2) {
-                let k=bricks.splice(Math.floor(Math.random()*bricks.length),1)[0]; map[k.y][k.x]=-4;
-                let d=bricks.splice(Math.floor(Math.random()*bricks.length),1)[0]; map[d.y][d.x]=-3;
-            }
-
-            const count=2+Math.floor(lv/2);
-            for(let i=0; i<count; i++) {
-                let x,y; do{x=Math.floor(Math.random()*GRID); y=Math.floor(Math.random()*GRID);} while(map[y][x]!==0 || (x<5&&y<5));
-                const el=document.createElement('div'); el.className='enemy'; el.innerText=['🦠','👿','👻'][i%3];
-                dom.ent.appendChild(el);
-                enemies.push({x,y,el,timer:0,speed:Math.max(10,40-lv*2)});
-            }
-            updateHUD(); player.gx=1; player.gy=1; updatePlayer();
+    for(let y=0; y<GRID; y++) {
+        let row = [];
+        for(let x=0; x<GRID; x++) {
+            const el=document.createElement('div'); el.className='cell';
+            el.style.left=(x*TILE)+'%'; el.style.top=(y*TILE)+'%'; el.id=`c-${x}-${y}`;
+            if(x===0||x===GRID-1||y===0||y===GRID-1||(x%2===0&&y%2===0)) { row.push(1); el.classList.add('wall'); }
+            else if(x<3&&y<3) { row.push(0); }
+            else { if(Math.random()<0.3) { row.push(2); el.classList.add('brick'); } else row.push(0); }
+            dom.grid.appendChild(el);
         }
+        map.push(row);
+    }
 
-        function loop() {
-            if(!STATE.pause) { movePlayer(); moveEnemies(); updateBombs(); }
-            requestAnimationFrame(loop);
-        }
+    let bricks=[]; for(let y=0; y<GRID; y++) for(let x=0; x<GRID; x++) if(map[y][x]===2) bricks.push({x,y});
+    if(bricks.length>2) {
+        let k=bricks.splice(Math.floor(Math.random()*bricks.length),1)[0]; map[k.y][k.x]=-4;
+        let d=bricks.splice(Math.floor(Math.random()*bricks.length),1)[0]; map[d.y][d.x]=-3;
+    }
 
-        let cd=0;
-        function movePlayer() {
-            if(cd>0) {cd--; return;}
-            let dx=0,dy=0;
-            if(input.u) dy=-1; else if(input.d) dy=1; else if(input.l) dx=-1; else if(input.r) dx=1;
-            if(dx||dy) {
-                let nx=player.gx+dx, ny=player.gy+dy;
-                if(nx<0||nx>=GRID||ny<0||ny>=GRID) return;
-                let cell=map[ny][nx];
-                let bomb=bombs.find(b=>b.x===nx && b.y===ny && !b.pass);
-                if((cell<=0||cell===3||cell===4) && !bomb) {
-                    player.gx=nx; player.gy=ny; updatePlayer(); checkItem(); cd=6;
-                    bombs.forEach(b=>{if(b.x!==player.gx||b.y!==player.gy) b.pass=false;});
-                }
-            }
-        }
-        function updatePlayer() { dom.player.style.left=(player.gx*TILE)+'%'; dom.player.style.top=(player.gy*TILE)+'%'; }
+    const count=2+Math.floor(lv/2);
+    for(let i=0; i<count; i++) {
+        let x,y; do{x=Math.floor(Math.random()*GRID); y=Math.floor(Math.random()*GRID);} while(map[y][x]!==0 || (x<5&&y<5));
+        const el=document.createElement('div'); el.className='enemy'; el.innerText=['🦠','👿','👻'][i%3];
+        dom.ent.appendChild(el);
+        enemies.push({x,y,el,timer:0,speed:Math.max(10,40-lv*2)});
+    }
+    updateHUD(); player.gx=1; player.gy=1; updatePlayer();
+}
 
-        function moveEnemies() {
-            enemies.forEach(e=>{
-                if(e.x===player.gx && e.y===player.gy) hitPlayer();
-                if(e.timer>0) {e.timer--; return;}
-                e.timer=e.speed;
-                const dirs=[[0,1],[0,-1],[1,0],[-1,0]];
-                let moved=false, tries=0;
-                while(!moved && tries<4) {
-                    let d=dirs[Math.floor(Math.random()*4)];
-                    let nx=e.x+d[0], ny=e.y+d[1];
-                    if(nx>=0&&nx<GRID&&ny>=0&&ny<GRID) {
-                        if(map[ny][nx]<=0 && !bombs.find(b=>b.x===nx&&b.y===ny)) {
-                            e.x=nx; e.y=ny; e.el.style.left=(e.x*TILE)+'%'; e.el.style.top=(e.y*TILE)+'%'; moved=true;
-                        }
-                    }
-                    tries++;
-                }
-                if(e.x===player.gx && e.y===player.gy) hitPlayer();
-            });
-        }
-        function hitPlayer() { STATE.hp--; updateHUD(); if(STATE.hp<=0) { alert('Game Over!'); startLevel(STATE.lv); STATE.hp=3; updateHUD(); } }
+function loop() {
+    if(!STATE.pause) { movePlayer(); moveEnemies(); updateBombs(); }
+    requestAnimationFrame(loop);
+}
 
-        function checkItem() {
-            let c=map[player.gy][player.gx];
-            if(c===4) { STATE.key=1; map[player.gy][player.gx]=0; document.getElementById(`item-${player.gx}-${player.gy}`).remove(); updateHUD(); }
-            else if(c===3 && STATE.key) { alert('Level Up!'); startLevel(STATE.lv+1); }
-        }
-
-        function placeBomb() {
-            if(STATE.pause) return;
-            if(STATE.ammo<=0) { let b=document.getElementById('reload-btn'); b.style.background='red'; setTimeout(()=>b.style.background='#0984e3',200); return; }
-            if(bombs.find(b=>b.x===player.gx && b.y===player.gy)) return;
-            STATE.ammo--; updateHUD();
-            const el=document.createElement('div'); el.className='bomb';
-            el.style.left=(player.gx*TILE)+'%'; el.style.top=(player.gy*TILE)+'%';
-            dom.obj.appendChild(el);
-            bombs.push({x:player.gx, y:player.gy, el:el, tick:180, pass:true});
-        }
-
-        function updateBombs() {
-            for(let i=bombs.length-1; i>=0; i--) {
-                let b=bombs[i]; if(!STATE.pause) b.tick--;
-                if(b.tick<=0) { explode(b); bombs.splice(i,1); }
-            }
-        }
-
-        function explode(b) {
-            b.el.remove();
-            let hits=[{x:b.x, y:b.y}];
-            [[0,1],[0,-1],[1,0],[-1,0]].forEach(d=>{
-                for(let i=1; i<=STATE.range; i++) {
-                    let nx=b.x+d[0]*i, ny=b.y+d[1]*i;
-                    if(nx<0||nx>=GRID||ny<0||ny>=GRID) break;
-                    if(map[ny][nx]===1) break;
-                    hits.push({x:nx, y:ny});
-                    if(map[ny][nx]===2 || map[ny][nx]<0) { breakBrick(nx,ny); break; }
-                }
-            });
-            hits.forEach(h=>{
-                const f=document.createElement('div'); f.className='fire';
-                f.style.left=(h.x*TILE)+'%'; f.style.top=(h.y*TILE)+'%';
-                dom.obj.appendChild(f); setTimeout(()=>f.remove(), 500);
-                if(player.gx===h.x && player.gy===h.y) hitPlayer();
-                for(let i=enemies.length-1; i>=0; i--) { if(enemies[i].x===h.x && enemies[i].y===h.y) { enemies[i].el.remove(); enemies.splice(i,1); }}
-            });
-        }
-
-        function breakBrick(x,y) {
-            const el=document.getElementById(`c-${x}-${y}`); el.className='cell';
-            if(map[y][x]===-4) { map[y][x]=4; const i=document.createElement('div'); i.className='cell key'; i.innerText='🔑'; i.id=`item-${x}-${y}`; i.style.left=(x*TILE)+'%'; i.style.top=(y*TILE)+'%'; dom.item.appendChild(i); }
-            else if(map[y][x]===-3) { map[y][x]=3; el.classList.add('door'); el.innerText='🚪'; }
-            else map[y][x]=0;
-        }
-
-        // --- 修正後的答題系統 ---
-        function triggerQuiz() {
-            STATE.pause=true; dom.quiz.style.display='flex';
-            dom.learn.style.display='none'; dom.closeBtn.style.display='none'; dom.q.box.style.display='grid';
-            
-            const q = DB[Math.floor(Math.random()*DB.length)]; curQ=q;
-            dom.q.w.innerText=q.w; dom.q.p.innerText=q.pho; dom.q.t.innerText=q.t;
-            
-            let opts=[q.m]; while(opts.length<4) { let r=DB[Math.floor(Math.random()*DB.length)].m; if(!opts.includes(r)) opts.push(r); }
-            opts.sort(()=>Math.random()-0.5);
-            
-            dom.q.box.innerHTML='';
-            opts.forEach(o=>{
-                const b=document.createElement('div'); b.className='opt-btn'; b.innerText=o;
-                b.onclick=()=>check(o,b); dom.q.box.appendChild(b);
-            });
-            speak('word');
-        }
-
-        function check(ans, btn) {
-            if(ans===curQ.m) {
-                btn.classList.add('correct');
-                STATE.ammo += 5; updateHUD();
-                
-                // ★ 顯示學習區 (不自動關閉) ★
-                dom.q.box.style.display='none';
-                dom.learn.style.display='block';
-                dom.closeBtn.style.display='block';
-                
-                let html = '';
-                curQ.sentences.forEach(s => {
-                    html += `<div class="sent-row"><div class="en-text">${s.en}</div><div class="cn-text">${s.cn}</div></div>`;
-                });
-                dom.learnContent.innerHTML = html;
-                
-                speak('sent');
-            } else {
-                btn.classList.add('wrong'); speakText("Try again");
-            }
-        }
-
-        function closeQuiz() {
-            dom.quiz.style.display='none'; STATE.pause=false;
-        }
-
-        function updateHUD() { dom.hud.hp.innerText=STATE.hp; dom.hud.lv.innerText=STATE.lv; dom.hud.key.innerText=STATE.key; dom.hud.ammo.innerText=STATE.ammo; }
+let cd=0;
+function movePlayer() {
+    if(cd>0) {cd--; return;}
+    let dx=0,dy=0;
+    if(input.u) dy=-1; else if(input.d) dy=1; else if(input.l) dx=-1; else if(input.r) dx=1;
+    if(dx||dy) {
+        let nx=player.gx+dx, ny=player.gy+dy;
+        // 核心修正：邊界檢查
+        if(nx<0||nx>=GRID||ny<0||ny>=GRID) return;
         
-        function speak(type) {
-            window.speechSynthesis.cancel();
-            let txt = "";
-            if(type==='word') txt = curQ.w;
-            else if(type==='sent') curQ.sentences.forEach(s => txt += s.en + ". ");
-            const u=new SpeechSynthesisUtterance(txt); u.lang='en-US'; window.speechSynthesis.speak(u);
+        let cell=map[ny][nx];
+        let bomb=bombs.find(b=>b.x===nx && b.y===ny && !b.pass);
+        if((cell<=0||cell===3||cell===4) && !bomb) {
+            player.gx=nx; player.gy=ny; updatePlayer(); checkItem(); cd=6;
+            bombs.forEach(b=>{if(b.x!==player.gx||b.y!==player.gy) b.pass=false;});
         }
-        function speakText(t) { const u=new SpeechSynthesisUtterance(t); u.lang='en-US'; window.speechSynthesis.speak(u); }
+    }
+}
+function updatePlayer() { dom.player.style.left=(player.gx*TILE)+'%'; dom.player.style.top=(player.gy*TILE)+'%'; }
 
-        window.onkeydown=e=>{if(e.key.includes('Arrow')) input[e.key[5].toLowerCase()]=true; if(e.key==' ') placeBomb();}
-        window.onkeyup=e=>{if(e.key.includes('Arrow')) input[e.key[5].toLowerCase()]=false;}
+function moveEnemies() {
+    enemies.forEach(e=>{
+        if(e.x===player.gx && e.y===player.gy) hitPlayer();
+        if(e.timer>0) {e.timer--; return;}
+        e.timer=e.speed;
+        const dirs=[[0,1],[0,-1],[1,0],[-1,0]];
+        let moved=false, tries=0;
+        while(!moved && tries<4) {
+            let d=dirs[Math.floor(Math.random()*4)];
+            let nx=e.x+d[0], ny=e.y+d[1];
+            // 核心修正：怪物邊界檢查
+            if(nx>=0&&nx<GRID&&ny>=0&&ny<GRID) {
+                if(map[ny][nx]<=0 && !bombs.find(b=>b.x===nx&&b.y===ny)) {
+                    e.x=nx; e.y=ny; e.el.style.left=(e.x*TILE)+'%'; e.el.style.top=(e.y*TILE)+'%'; moved=true;
+                }
+            }
+            tries++;
+        }
+        if(e.x===player.gx && e.y===player.gy) hitPlayer();
+    });
+}
+function hitPlayer() { STATE.hp--; updateHUD(); if(STATE.hp<=0) { alert('Game Over!'); startLevel(STATE.lv); STATE.hp=3; updateHUD(); } }
 
-        init();
-    </script>
+function checkItem() {
+    let c=map[player.gy][player.gx];
+    if(c===4) { STATE.key=1; map[player.gy][player.gx]=0; document.getElementById(`item-${player.gx}-${player.gy}`).remove(); updateHUD(); }
+    else if(c===3 && STATE.key) { alert('Level Up!'); startLevel(STATE.lv+1); }
+}
+
+function placeBomb() {
+    if(STATE.pause) return;
+    if(STATE.ammo<=0) { let b=document.getElementById('reload-btn'); b.style.background='red'; setTimeout(()=>b.style.background='#0984e3',200); return; }
+    if(bombs.find(b=>b.x===player.gx && b.y===player.gy)) return;
+    STATE.ammo--; updateHUD();
+    const el=document.createElement('div'); el.className='bomb';
+    el.style.left=(player.gx*TILE)+'%'; el.style.top=(player.gy*TILE)+'%';
+    dom.obj.appendChild(el);
+    bombs.push({x:player.gx, y:player.gy, el:el, tick:180, pass:true});
+}
+
+function updateBombs() {
+    for(let i=bombs.length-1; i>=0; i--) {
+        let b=bombs[i]; if(!STATE.pause) b.tick--;
+        if(b.tick<=0) { explode(b); bombs.splice(i,1); }
+    }
+}
+
+function explode(b) {
+    b.el.remove();
+    let hits=[{x:b.x, y:b.y}];
+    [[0,1],[0,-1],[1,0],[-1,0]].forEach(d=>{
+        for(let i=1; i<=STATE.range; i++) {
+            let nx=b.x+d[0]*i, ny=b.y+d[1]*i;
+            // 核心修正：火光邊界檢查 (防止卡死的主因)
+            if(nx<0||nx>=GRID||ny<0||ny>=GRID) break;
+            
+            if(map[ny][nx]===1) break;
+            hits.push({x:nx, y:ny});
+            if(map[ny][nx]===2 || map[ny][nx]<0) { breakBrick(nx,ny); break; }
+        }
+    });
+    hits.forEach(h=>{
+        const f=document.createElement('div'); f.className='fire';
+        f.style.left=(h.x*TILE)+'%'; f.style.top=(h.y*TILE)+'%';
+        dom.obj.appendChild(f); setTimeout(()=>f.remove(), 500);
+        if(player.gx===h.x && player.gy===h.y) hitPlayer();
+        for(let i=enemies.length-1; i>=0; i--) { if(enemies[i].x===h.x && enemies[i].y===h.y) { enemies[i].el.remove(); enemies.splice(i,1); }}
+    });
+}
+
+function breakBrick(x,y) {
+    const el=document.getElementById(`c-${x}-${y}`); el.className='cell';
+    if(map[y][x]===-4) { map[y][x]=4; const i=document.createElement('div'); i.className='cell key'; i.innerText='🔑'; i.id=`item-${x}-${y}`; i.style.left=(x*TILE)+'%'; i.style.top=(y*TILE)+'%'; dom.item.appendChild(i); }
+    else if(map[y][x]===-3) { map[y][x]=3; el.classList.add('door'); el.innerText='🚪'; }
+    else map[y][x]=0;
+}
+
+function triggerQuiz() {
+    STATE.pause=true; dom.quiz.style.display='flex';
+    dom.learn.style.display='none'; dom.closeBtn.style.display='none'; dom.q.box.style.display='grid';
+    
+    const q = DB[Math.floor(Math.random()*DB.length)]; curQ=q;
+    dom.q.w.innerText=q.w; dom.q.t.innerText=q.t;
+    
+    let opts=[q.m]; while(opts.length<4) { let r=DB[Math.floor(Math.random()*DB.length)].m; if(!opts.includes(r)) opts.push(r); }
+    opts.sort(()=>Math.random()-0.5);
+    
+    dom.q.box.innerHTML='';
+    opts.forEach(o=>{
+        const b=document.createElement('div'); b.className='opt-btn'; b.innerText=o;
+        b.onclick=()=>check(o,b); dom.q.box.appendChild(b);
+    });
+    speak('word');
+}
+
+function check(ans, btn) {
+    if(ans===curQ.m) {
+        btn.classList.add('correct');
+        // ★ 核心修正：不自動關閉，顯示例句 ★
+        dom.q.box.style.display='none';
+        dom.learn.style.display='block';
+        dom.closeBtn.style.display='block';
+        
+        let html = '';
+        curQ.sentences.forEach(s => {
+            html += `<div class="sent-row"><div class="en-text">${s.en}</div><div class="cn-text">${s.cn}</div></div>`;
+        });
+        dom.learnContent.innerHTML = html;
+        
+        speak('sent');
+    } else {
+        btn.classList.add('wrong'); speakText("Try again");
+    }
+}
+
+function closeQuiz() {
+    STATE.ammo += 5; updateHUD(); // 獎勵
+    dom.quiz.style.display='none'; STATE.pause=false;
+}
+
+function updateHUD() { dom.hud.hp.innerText=STATE.hp; dom.hud.lv.innerText=STATE.lv; dom.hud.key.innerText=STATE.key; dom.hud.ammo.innerText=STATE.ammo; }
+function speak(type) {
+    window.speechSynthesis.cancel();
+    let txt = "";
+    if(type==='word') txt = curQ.w;
+    else if(type==='sent') curQ.sentences.forEach(s => txt += s.en + ". ");
+    const u=new SpeechSynthesisUtterance(txt); u.lang='en-US'; window.speechSynthesis.speak(u);
+}
+function speakText(t) { const u=new SpeechSynthesisUtterance(t); u.lang='en-US'; window.speechSynthesis.speak(u); }
+
+window.onkeydown=e=>{if(e.key.includes('Arrow')) input[e.key[5].toLowerCase()]=true; if(e.key==' ') placeBomb();}
+window.onkeyup=e=>{if(e.key.includes('Arrow')) input[e.key[5].toLowerCase()]=false;}
+
+init();
+</script>
 </body>
 </html>
