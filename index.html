@@ -3,19 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>肥橘貓爆破王 v3.6 (防誤觸版)</title>
+    <title>肥橘貓爆破王 v5.0</title>
     <style>
-        /* --- 核心修正：強制鎖定畫面 --- */
+        /* 禁止縮放與誤觸 */
         html, body {
-            margin: 0; padding: 0;
-            width: 100%; height: 100%;
-            overflow: hidden; /* 禁止捲動 */
-            position: fixed; /* 鎖死位置 */
-            background: #222;
-            touch-action: none; /* 禁止瀏覽器預設手勢 */
-            -webkit-user-select: none; user-select: none;
-            font-family: 'Roboto Mono', monospace;
-            color: white;
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; position: fixed; background: #222;
+            touch-action: none; -webkit-user-select: none; user-select: none;
+            font-family: 'Segoe UI', sans-serif; color: white;
+            -webkit-tap-highlight-color: transparent;
         }
 
         /* 遊戲主容器 */
@@ -26,43 +22,50 @@
 
         /* HUD */
         #hud { 
-            width: 100%; max-width: 600px; padding: 10px; background: #333; 
+            width: 100%; max-width: 600px; padding: 8px 15px; background: #333; 
             display: flex; justify-content: space-between; align-items: center; 
             border-bottom: 2px solid #555; font-weight: bold; font-size: 0.9rem;
-            flex-shrink: 0; /* 防止被壓縮 */
+            flex-shrink: 0; z-index: 50;
         }
         .ammo-box { color: #f1c40f; border: 1px solid #f1c40f; padding: 2px 8px; border-radius: 4px; }
-        #reload-btn { background: #0984e3; color: white; border: none; padding: 5px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        #reload-btn { 
+            background: #0984e3; color: white; border: none; padding: 8px 15px; 
+            border-radius: 4px; font-weight: bold; cursor: pointer; 
+            animation: pulse-btn 2s infinite; font-size: 0.9rem;
+        }
+        @keyframes pulse-btn { 0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)} }
 
         /* 遊戲舞台 */
         #stage { 
-            position: relative; 
-            width: 90vmin; height: 90vmin; /* 使用 vmin 確保正方形且不超出版面 */
+            position: relative; width: 92vmin; height: 92vmin; 
             max-width: 600px; max-height: 600px; 
-            background: #555; border: 4px solid #000; overflow: hidden; margin: 10px 0;
+            background: #555; border: 4px solid #000; overflow: hidden; margin: 5px 0;
         }
-        .cell { position: absolute; width: 6.66%; height: 6.66%; display: flex; justify-content: center; align-items: center; }
+        .cell { position: absolute; width: 6.66%; height: 6.66%; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; }
         .wall { background: #333; border: 1px solid #222; box-shadow: inset 0 0 5px #000; }
         .brick { background: #e17055; border: 2px solid #d63031; transition: 0.2s; }
-        .door { background: #000; border: 1px dashed #fff; } 
-        .key { font-size: 1.5rem; }
+        .door { background: #000; border: 2px dashed #fff; } 
+        .key { font-size: 1.5rem; animation: float 1s infinite alternate; }
+        @keyframes float { from{transform:translateY(0)} to{transform:translateY(-5px)} }
 
         /* 角色 */
-        #player { position: absolute; width: 6.66%; height: 6.66%; z-index: 20; background-image: url('肥貓.gif'); background-size: contain; background-repeat: no-repeat; background-position: center; transition: top 0.1s linear, left 0.1s linear; }
-        .default-cat { background-image: url('https://cdn-icons-png.flaticon.com/512/616/616430.png') !important; }
+        #player { 
+            position: absolute; width: 6.66%; height: 6.66%; z-index: 20; 
+            display: flex; justify-content: center; align-items: center;
+            font-size: 2rem; transition: top 0.1s linear, left 0.1s linear; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
         .enemy { position: absolute; width: 6.66%; height: 6.66%; z-index: 15; font-size: 1.5rem; text-align: center; transition: top 0.3s linear, left 0.3s linear; }
         .bomb { position: absolute; width: 5%; height: 5%; margin: 0.8%; z-index: 10; background: #2d3436; border-radius: 50%; border: 2px solid #fff; animation: tick 0.5s infinite alternate; }
         .fire { position: absolute; width: 6.66%; height: 6.66%; z-index: 12; background: rgba(255, 200, 0, 0.8); }
         @keyframes tick { from{transform:scale(0.9)} to{transform:scale(1.1)} }
 
-        /* 控制器區域 */
+        /* 控制器 */
         #controls { 
             width: 100%; max-width: 500px; height: 160px; 
             display: flex; justify-content: space-between; align-items: center; 
             padding: 0 30px; flex-shrink: 0;
         }
-        
-        /* 十字鍵優化：加大感應區 */
         .dpad { position: relative; width: 140px; height: 140px; }
         .dbtn { 
             position: absolute; width: 50px; height: 50px; 
@@ -70,11 +73,8 @@
             border-radius: 8px; 
         }
         .dbtn:active { background: rgba(255,255,255,0.5); }
-        /* 調整按鈕位置避免誤觸 */
-        .du { top:0; left:45px; } 
-        .dd { bottom:0; left:45px; } 
-        .dl { top:45px; left:0; } 
-        .dr { top:45px; right:0; }
+        .du { top:0; left:45px; } .dd { bottom:0; left:45px; } 
+        .dl { top:45px; left:0; } .dr { top:45px; right:0; }
 
         .act-btn { 
             width: 90px; height: 90px; border-radius: 50%; 
@@ -86,16 +86,29 @@
 
         /* 答題卡 */
         #quiz-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; display: none; justify-content: center; align-items: center; }
-        .card { background: white; color: #333; width: 90%; max-width: 450px; padding: 20px; border-radius: 15px; max-height: 90vh; overflow-y: auto; text-align: center; }
+        .card { background: white; color: #333; width: 90%; max-width: 450px; padding: 20px; border-radius: 15px; max-height: 90vh; overflow-y: auto; text-align: center; position: relative; }
         .word { font-size: 2.2rem; color: #d63031; font-weight: 800; margin: 0; }
         .meta { color: #666; margin: 5px 0 15px 0; display: flex; justify-content: center; align-items: center; gap: 10px; }
-        .btn-audio { border: 1px solid #ccc; background: #eee; border-radius: 15px; padding: 2px 10px; font-size: 0.8rem; cursor: pointer; }
-        .sent-box { background: #f1f2f6; padding: 12px; border-radius: 8px; text-align: left; margin-bottom: 15px; border-left: 4px solid #0984e3; }
-        .sent-en { font-weight: bold; margin-bottom: 5px; font-size: 1rem; }
-        .sent-cn { color: #636e72; font-size: 0.9rem; display: none; }
-        .opt-btn { width: 100%; padding: 14px; margin: 6px 0; border: 1px solid #ccc; background: #fff; border-radius: 8px; font-size: 1rem; text-align: left; font-weight: bold; cursor: pointer; }
+        .btn-audio { border: 1px solid #ccc; background: #eee; border-radius: 15px; padding: 4px 12px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 5px;}
+        
+        .sent-box { background: #f1f2f6; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 15px; border-left: 5px solid #0984e3; display: none; }
+        .sent-row { margin-bottom: 8px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
+        .sent-row:last-child { border-bottom: none; }
+        .en-text { font-weight: bold; font-size: 1.05rem; color: #2d3436; }
+        .cn-text { color: #636e72; font-size: 0.9rem; margin-top: 2px; }
+        
+        .opt-btn { width: 100%; padding: 15px; margin: 6px 0; border: 1px solid #ccc; background: #fff; border-radius: 8px; font-size: 1.1rem; text-align: left; font-weight: bold; cursor: pointer; }
         .opt-btn.correct { background: #00b894; color: white; border-color: #00b894; }
         .opt-btn.wrong { background: #d63031; color: white; border-color: #d63031; }
+        
+        /* 學習完成按鈕 */
+        #close-quiz-btn {
+            display: none; width: 100%; padding: 15px; margin-top: 15px;
+            background: #0984e3; color: white; border: none; border-radius: 8px;
+            font-size: 1.2rem; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 0 #0762a8;
+        }
+        #close-quiz-btn:active { transform: translateY(4px); box-shadow: none; }
     </style>
 </head>
 <body>
@@ -105,8 +118,8 @@
             <span>❤️<span id="ui-hp">3</span></span>
             <span>Lv.<span id="ui-lv">1</span></span>
             <span>🔑<span id="ui-key">0</span></span>
-            <span class="ammo-box">💣<span id="ui-ammo">3</span></span>
-            <button id="reload-btn" onclick="triggerQuiz(null, true)">+ 補給</button>
+            <span class="ammo-box">💣<span id="ui-ammo">5</span></span>
+            <button id="reload-btn" onclick="triggerQuiz()">+ 補給(學習)</button>
         </div>
 
         <div id="stage">
@@ -114,7 +127,7 @@
             <div id="layer-item"></div>
             <div id="layer-obj"></div>
             <div id="layer-ent"></div>
-            <div id="player"></div>
+            <div id="player">🐱</div>
         </div>
 
         <div id="controls">
@@ -130,592 +143,307 @@
 
     <div id="quiz-layer">
         <div class="card">
-            <div style="font-size:0.8rem; color:#aaa; margin-bottom:5px;">TOEIC CHALLENGE</div>
+            <div style="font-size:0.8rem; color:#aaa; margin-bottom:5px;">TOEIC 記憶特訓</div>
             <h1 class="word" id="q-w">Word</h1>
             <div class="meta">
                 <span id="q-p">/pho/</span> <span id="q-t">n.</span>
                 <button class="btn-audio" onclick="speak('word')">🔊 單字</button>
             </div>
-            <div class="sent-box">
-                <div class="sent-en" id="q-s">Example sentence.</div>
-                <div class="sent-cn" id="q-sc">中文翻譯</div>
-                <button class="btn-audio" style="margin-top:5px;" onclick="speak('sent')">🔊 唸例句</button>
-            </div>
-            <div style="text-align:left; font-size:0.9rem; color:#888;">請選擇正確意思：</div>
+            
             <div id="opt-box"></div>
+
+            <div id="learn-area" class="sent-box">
+                <div style="font-size:0.8rem; color:#888; margin-bottom:5px;">★ 必考搭配詞 (Collocations)</div>
+                <div id="sent-content"></div>
+                <button class="btn-audio" style="width:100%; margin-top:10px; justify-content: center;" onclick="speak('sent')">🔊 播放整組例句幫助記憶</button>
+            </div>
+
+            <button id="close-quiz-btn" onclick="closeQuiz()">✅ 我記住了，繼續遊戲</button>
         </div>
     </div>
 
     <script>
-        // ==========================================
-        // ★ 強力鎖定程式碼 (解決手機亂跑問題) ★
-        // ==========================================
-        document.addEventListener('touchmove', function(e) {
-            e.preventDefault(); // 禁止所有滑動
-        }, { passive: false });
-
-        document.addEventListener('gesturestart', function(e) {
-            e.preventDefault(); // 禁止縮放手勢
-        });
-
-        document.addEventListener('dblclick', function(e) {
-            e.preventDefault(); // 禁止雙擊放大
-        });
+        // 防誤觸
+        document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+        document.addEventListener('gesturestart', e => e.preventDefault());
+        document.addEventListener('dblclick', e => e.preventDefault());
 
         // ==========================================
-        // 1. 真．多益高頻單字庫
+        // 1. 三句式記憶資料庫 (部分示範，請自行擴充)
+        // 格式：單字|音標|詞性|中文|英文例句1^中文1^英文2^中文2^英文3^中文3
         // ==========================================
         const RAW_DATA = [
-            "Agenda|/əˈdʒen.də/|n.|議程|The agenda is attached.|議程已附上。",
-            "Budget|/ˈbʌdʒ.ɪt/|n.|預算|Stay within the budget.|保持在預算內。",
-            "Colleague|/ˈkɑː.liːɡ/|n.|同事|He is my colleague.|他是我的同事。",
-            "Deadline|/ˈded.laɪn/|n.|截止期限|The deadline is 5 PM.|截止期限是下午五點。",
-            "Executive|/ɪɡˈzek.jə.tɪv/|n.|高階主管|The executive approved it.|高管批准了。",
-            "Feedback|/ˈfiːd.bæk/|n.|回饋|We value your feedback.|我們重視您的回饋。",
-            "Guarantee|/ˌɡær.ənˈtiː/|v.|保證|Satisfaction guaranteed.|保證滿意。",
-            "Implement|/ˈɪm.plə.ment/|v.|實施|Implement the plan.|實施這項計畫。",
-            "Lucrative|/ˈluː.krə.tɪv/|adj.|賺錢的|A lucrative deal.|一筆賺錢的交易。",
-            "Merger|/ˈmɝː.dʒɚ/|n.|合併|The merger is final.|合併案已定案。",
-            "Negotiate|/nəˈɡoʊ.ʃi.eɪt/|v.|談判|Negotiate the price.|談判價格。",
-            "Recruit|/rɪˈkruːt/|v.|招募|Recruit new staff.|招募新員工。",
-            "Resume|/rɪˈzuːm/|n.|履歷表|Send your resume.|寄送您的履歷。",
-            "Penalty|/ˈpen.əl.ti/|n.|罰款|Pay the penalty.|支付罰款。",
-            "Itinerary|/laɪˈə.bəl/|n.|行程表|Travel itinerary.|旅遊行程。",
-            "Asset|/ˈæs.et/|n.|資產|Valuable asset.|寶貴的資產。",
-            "Deficit|/ˈdef.ə.sɪt/|n.|赤字|Trade deficit.|貿易赤字。",
-            "Portfolio|/ˌpɔːrtˈfoʊ.li.oʊ/|n.|作品集|Show your portfolio.|展示你的作品集。",
-            "Refund|/ˈriː.fʌnd/|n.|退款|Get a refund.|獲得退款。",
-            "Valid|/ˈvæl.ɪd/|adj.|有效的|Valid passport.|有效的護照。",
-            "Acquire|/əˈkwaɪɚ/|v.|收購|Acquire a company.|收購一家公司。",
-            "Bankruptcy|/ˈbæŋ.krʌpt.si/|n.|破產|Face bankruptcy.|面臨破產。",
-            "Capacity|/kəˈpæs.ə.t̬i/|n.|容量|Full capacity.|產能滿載。",
-            "Collaborate|/kəˈlæb.ə.reɪt/|v.|合作|Collaborate with us.|與我們合作。",
-            "Designate|/ˈdez.ɪɡ.neɪt/|v.|指定|Designated area.|指定區域。",
-            "Entrepreneur|/ˌɑːn.trə.prəˈnɝː/|n.|企業家|Young entrepreneur.|年輕的企業家。",
-            "Fluctuate|/ˈflʌk.tʃu.eɪt/|v.|波動|Prices fluctuate.|價格波動。",
-            "Generate|/ˈdʒen.ə.reɪt/|v.|產生|Generate profit.|產生利潤。",
-            "Hazard|/ˈhæz.ɚd/|n.|危險|Safety hazard.|安全隱患。",
-            "Incentive|/ɪnˈsen.tɪv/|n.|誘因/獎勵|Cash incentive.|現金獎勵。",
-            "Joint|/dʒɔɪnt/|adj.|聯合的|Joint venture.|合資企業。",
-            "Launch|/lɑːntʃ/|v.|發布|Launch a product.|發布產品。",
-            "Mandatory|/ˈmæn.də.tɔː.ri/|adj.|強制的|Mandatory training.|強制訓練。",
-            "Nominate|/ˈnɑː.mə.neɪt/|v.|提名|Nominate him.|提名他。",
-            "Obligation|/ˌɑː.bləˈɡeɪ.ʃən/|n.|義務|Legal obligation.|法律義務。",
-            "Participant|/pɑːrˈtɪs.ə.pənt/|n.|參與者|Active participant.|積極的參與者。",
-            "Qualify|/ˈkwɑː.lə.faɪ/|v.|有資格|Qualify for loan.|符合貸款資格。",
-            "Renovate|/ˈren.ə.veɪt/|v.|整修|Renovate office.|整修辦公室。",
-            "Specification|/ˌspes.ə.fəˈkeɪ.ʃən/|n.|規格|Tech specs.|技術規格。",
-            "Terminate|/ˈtɝː.mə.neɪt/|v.|終止|Terminate contract.|終止合約。",
-            "Update|/ʌpˈdeɪt/|v.|更新|Update software.|更新軟體。",
-            "Verify|/ˈver.ə.faɪ/|v.|核實|Verify account.|核實帳戶。",
-            "Withdraw|/wɪðˈdrɑː/|v.|提款|Withdraw money.|提款。",
-            "Yield|/jiːld/|n.|收益|High yield.|高收益。",
-            "Zone|/zoʊn/|n.|區域|Time zone.|時區。",
-            "Allocate|/ˈæl.ə.keɪt/|v.|分配|Allocate funds.|分配資金。",
-            "Brochure|/broʊˈʃʊr/|n.|小冊子|Read the brochure.|閱讀小冊子。",
-            "Comply|/kəmˈplaɪ/|v.|遵守|Comply with laws.|遵守法律。",
-            "Distribution|/ˌdɪs.trɪˈbjuː.ʃən/|n.|分配|Distribution channel.|分銷渠道。",
-            "Expansion|/ɪkˈspæn.ʃən/|n.|擴張|Rapid expansion.|快速擴張。",
-            "Fiscal|/ˈfɪs.kəl/|adj.|財政的|Fiscal year.|財政年度。",
-            "Gross|/ɡroʊs/|adj.|總共的|Gross income.|總收入。",
-            "Headhunter|/ˈhed.hʌn.tɚ/|n.|獵人頭|Met a headhunter.|見了獵人頭。",
-            "Inspect|/ɪnˈspekt/|v.|檢查|Inspect goods.|檢查貨物。",
-            "Jurisdiction|/ˌdʒʊr.ɪsˈdɪk.ʃən/|n.|管轄權|Within jurisdiction.|在管轄權內。",
-            "Kickoff|/ˈkɪk.ɑːf/|n.|開始|Kickoff meeting.|啟動會議。",
-            "Logistics|/ləˈdʒɪs.tɪks/|n.|物流|Manage logistics.|管理物流。",
-            "Monopoly|/məˈnɑː.pəl.i/|n.|壟斷|Market monopoly.|市場壟斷。",
-            "Negotiation|/nəˌɡoʊ.ʃiˈeɪ.ʃən/|n.|談判|Salary negotiation.|薪資談判。",
-            "Overhead|/ˈoʊ.vɚ.hed/|n.|經常開支|Reduce overhead.|減少經常開支。",
-            "Patent|/ˈpæt.ənt/|n.|專利|File a patent.|申請專利。",
-            "Quarterly|/ˈkwɔːr.t̬ɚ.li/|adj.|季度的|Quarterly report.|季度報告。",
-            "Revenue|/ˈrev.ə.nuː/|n.|營收|Total revenue.|總營收。",
-            "Strategy|/ˈstræt̬.ə.dʒi/|n.|策略|New strategy.|新策略。",
-            "Trademark|/ˈtreɪd.mɑːrk/|n.|商標|Register trademark.|註冊商標。",
-            "Unanimous|/juːˈnæn.ə.məs/|adj.|全體一致的|Unanimous vote.|全體一致的投票。",
-            "Vacancy|/ˈveɪ.kən.si/|n.|空缺|Job vacancy.|職位空缺。",
-            "Warranty|/ˈwɔːr.ən.ti/|n.|保固|One-year warranty.|一年保固。",
-            "Account|/əˈkaʊnt/|n.|帳戶|Bank account.|銀行帳戶。",
-            "Balance|/ˈbæl.əns/|n.|餘額|Check balance.|查詢餘額。",
-            "Capital|/ˈkæp.ə.t̬əl/|n.|資本|Venture capital.|創投資本。",
-            "Debt|/det/|n.|債務|Pay debt.|償還債務。",
-            "Equity|/ˈek.wə.t̬i/|n.|股權|Private equity.|私募股權。",
-            "Fund|/fʌnd/|n.|基金|Mutual fund.|共同基金。",
-            "Gain|/ɡeɪn/|n.|獲利|Capital gain.|資本利得。",
-            "Income|/ˈɪn.kʌm/|n.|收入|Net income.|淨收入。",
-            "Loss|/lɑːs/|n.|損失|Net loss.|淨損失。",
-            "Margin|/ˈmɑːr.dʒɪn/|n.|利潤率|Profit margin.|利潤率。",
-            "Net|/net/|adj.|淨值的|Net worth.|淨值。",
-            "Option|/ˈɑːp.ʃən/|n.|期權|Stock option.|股票期權。",
-            "Profit|/ˈprɑː.fɪt/|n.|利潤|Gross profit.|毛利。",
-            "Quote|/kwoʊt/|n.|報價|Price quote.|價格報價。",
-            "Rate|/reɪt/|n.|利率|Interest rate.|利率。",
-            "Stock|/stɑːk/|n.|股票|Stock market.|股票市場。",
-            "Tax|/tæks/|n.|稅|Income tax.|所得稅。",
-            "Value|/ˈvæl.juː/|n.|價值|Market value.|市場價值。",
-            "Appraisal|/əˈpreɪ.zəl/|n.|評估|Performance appraisal.|績效評估。",
-            "Assignment|/əˈsaɪn.mənt/|n.|指派工作|Work assignment.|工作指派。",
-            "Bonus|/ˈboʊ.nəs/|n.|獎金|Year-end bonus.|年終獎金。",
-            "Career|/kəˈrɪr/|n.|職涯|Career goal.|職涯目標。",
-            "Contract|/ˈkɑːn.trækt/|n.|合約|Sign contract.|簽署合約。",
-            "Dismiss|/dɪsˈmɪs/|v.|解僱|Dismiss employee.|解僱員工。",
-            "Employee|/ɪmˈplɔɪ.iː/|n.|員工|New employee.|新員工。",
-            "Employer|/ɪmˈplɔɪ.ɚ/|n.|雇主|Good employer.|好雇主。",
-            "Evaluate|/ɪˈvæl.ju.eɪt/|v.|評估|Evaluate performance.|評估表現。",
-            "Experience|/ɪkˈspɪr.i.əns/|n.|經驗|Work experience.|工作經驗。",
-            "Hire|/haɪr/|v.|雇用|Hire staff.|雇用員工。",
-            "Interview|/ˈɪn.t̬ɚ.vjuː/|n.|面試|Job interview.|工作面試。",
-            "Mentor|/ˈmen.tɔːr/|n.|導師|Career mentor.|職涯導師。",
-            "Overtime|/ˈoʊ.vɚ.taɪm/|n.|加班|Work overtime.|加班。",
-            "Pension|/ˈpen.ʃən/|n.|退休金|Pension plan.|退休金計畫。",
-            "Promotion|/prəˈmoʊ.ʃən/|n.|晉升|Get a promotion.|獲得晉升。",
-            "Reference|/ˈref.ɚ.əns/|n.|推薦信|Job reference.|工作推薦信。",
-            "Resign|/rɪˈzaɪn/|v.|辭職|Resign from job.|辭職。",
-            "Retire|/rɪˈtaɪr/|v.|退休|Plan to retire.|計畫退休。",
-            "Salary|/ˈsæl.ɚ.i/|n.|薪水|Monthly salary.|月薪。",
-            "Shift|/ʃɪft/|n.|輪班|Night shift.|夜班。",
-            "Skill|/skɪl/|n.|技能|Soft skill.|軟實力。",
-            "Training|/ˈtreɪ.nɪŋ/|n.|訓練|Staff training.|員工訓練。",
-            "Vacancy|/ˈveɪ.kən.si/|n.|職缺|Job vacancy.|職位空缺。",
-            "Wage|/weɪdʒ/|n.|工資|Minimum wage.|最低工資。",
-            "Advertise|/ˈæd.vɚ.taɪz/|v.|廣告|Advertise online.|線上廣告。",
-            "Brand|/brænd/|n.|品牌|Luxury brand.|奢侈品牌。",
-            "Campaign|/kæmˈpeɪn/|n.|活動|Ad campaign.|廣告活動。",
-            "Client|/ˈklaɪ.ənt/|n.|客戶|VIP client.|貴賓客戶。",
-            "Consumer|/kənˈsuː.mɚ/|n.|消費者|Consumer rights.|消費者權益。",
-            "Coupon|/ˈkuː.pɑːn/|n.|優惠券|Use coupon.|使用優惠券。",
-            "Demand|/dɪˈmænd/|n.|需求|Market demand.|市場需求。",
-            "Discount|/ˈdɪs.kaʊnt/|n.|折扣|Get a discount.|獲得折扣。",
-            "Display|/dɪˈspleɪ/|n.|展示|Window display.|櫥窗展示。",
-            "Export|/ˈek.spɔːrt/|v.|出口|Export goods.|出口貨物。",
-            "Feature|/ˈfiː.tʃɚ/|n.|特徵|Key feature.|關鍵特徵。",
-            "Import|/ˈɪm.pɔːrt/|v.|進口|Import products.|進口產品。",
-            "Inventory|/ˈɪn.vən.tɔːr.i/|n.|存貨|Check inventory.|盤點存貨。",
-            "Market|/ˈmɑːr.kɪt/|n.|市場|Global market.|全球市場。",
-            "Outlet|/ˈaʊt.let/|n.|暢貨中心|Retail outlet.|零售店。",
-            "Package|/ˈpæk.ɪdʒ/|n.|包裹|Send package.|寄包裹。",
-            "Pricing|/ˈpraɪ.sɪŋ/|n.|定價|Pricing strategy.|定價策略。",
-            "Publicity|/pʌbˈlɪs.ə.t̬i/|n.|宣傳|Good publicity.|良好的宣傳。",
-            "Purchase|/ˈpɝː.tʃəs/|v.|購買|Purchase order.|採購單。",
-            "Retail|/ˈriː.teɪl/|n.|零售|Retail price.|零售價。",
-            "Sale|/seɪl/|n.|拍賣/銷售|On sale.|特價中。",
-            "Sample|/ˈsæm.pəl/|n.|樣品|Free sample.|免費樣品。",
-            "Sponsor|/ˈspɑːn.sɚ/|n.|贊助商|Event sponsor.|活動贊助商。",
-            "Supply|/səˈplaɪ/|n.|供應|Supply chain.|供應鏈。",
-            "Survey|/ˈsɝː.veɪ/|n.|調查|Market survey.|市場調查。",
-            "Target|/ˈtɑːr.ɡɪt/|n.|目標|Target audience.|目標受眾。",
-            "Trend|/trend/|n.|趨勢|Market trend.|市場趨勢。",
-            "Wholesale|/ˈhoʊl.seɪl/|n.|批發|Wholesale price.|批發價。",
-            "Backup|/ˈbæk.ʌp/|n.|備份|Data backup.|數據備份。",
-            "Browser|/ˈbraʊ.zɚ/|n.|瀏覽器|Web browser.|網頁瀏覽器。",
-            "Cable|/ˈkeɪ.bəl/|n.|電纜|USB cable.|USB線。",
-            "Connect|/kəˈnekt/|v.|連接|Connect to WiFi.|連接WiFi。",
-            "Database|/ˈdeɪ.t̬ə.beɪs/|n.|資料庫|Update database.|更新資料庫。",
-            "Delete|/dɪˈliːt/|v.|刪除|Delete file.|刪除檔案。",
-            "Device|/dɪˈvaɪs/|n.|裝置|Mobile device.|行動裝置。",
-            "Digital|/ˈdɪdʒ.ə.t̬əl/|adj.|數位的|Digital camera.|數位相機。",
-            "Download|/ˈdaʊn.loʊd/|v.|下載|Download app.|下載應用程式。",
-            "Email|/ˈiː.meɪl/|n.|電子郵件|Send email.|寄Email。",
-            "File|/faɪl/|n.|檔案|Save file.|儲存檔案。",
-            "Format|/ˈfɔːr.mæt/|n.|格式|File format.|檔案格式。",
-            "Hardware|/ˈhɑːrd.wer/|n.|硬體|Computer hardware.|電腦硬體。",
-            "Install|/ɪnˈstɑːl/|v.|安裝|Install software.|安裝軟體。",
-            "Keyboard|/ˈkiː.bɔːrd/|n.|鍵盤|Type on keyboard.|用鍵盤打字。",
-            "Laptop|/ˈlæp.tɑːp/|n.|筆電|Use laptop.|使用筆電。",
-            "Link|/lɪŋk/|n.|連結|Click the link.|點擊連結。",
-            "Login|/ˈlɑːɡ.ɪn/|n.|登入|Login page.|登入頁面。",
-            "Monitor|/ˈmɑː.nə.t̬ɚ/|n.|螢幕|Screen monitor.|電腦螢幕。",
-            "Mouse|/maʊs/|n.|滑鼠|Click mouse.|點擊滑鼠。",
-            "Network|/ˈnet.wɝːk/|n.|網路|Social network.|社群網路。",
-            "Online|/ˈɑːn.laɪn/|adj.|線上的|Online shopping.|線上購物。",
-            "Password|/ˈpæs.wɝːd/|n.|密碼|Enter password.|輸入密碼。",
-            "Printer|/ˈprɪn.t̬ɚ/|n.|印表機|Color printer.|彩色印表機。",
-            "Program|/ˈproʊ.ɡræm/|n.|程式|Computer program.|電腦程式。",
-            "Screen|/skriːn/|n.|螢幕|Touch screen.|觸控螢幕。",
-            "Search|/sɝːtʃ/|v.|搜尋|Search engine.|搜尋引擎。",
-            "Server|/ˈsɝː.vɚ/|n.|伺服器|Server down.|伺服器當機。",
-            "Software|/ˈsɑːft.wer/|n.|軟體|Anti-virus software.|防毒軟體。",
-            "System|/ˈsɪs.təm/|n.|系統|Operating system.|作業系統。",
-            "Update|/ʌpˈdeɪt/|v.|更新|System update.|系統更新。",
-            "Upload|/ˈʌp.loʊd/|v.|上傳|Upload photo.|上傳照片。",
-            "User|/ˈjuː.zɚ/|n.|使用者|User friendly.|使用者友善。",
-            "Virus|/ˈvaɪ.rəs/|n.|病毒|Computer virus.|電腦病毒。",
-            "Website|/ˈweb.saɪt/|n.|網站|Visit website.|造訪網站。",
-            "Wireless|/ˈwaɪr.ləs/|adj.|無線的|Wireless mouse.|無線滑鼠。",
-            "Component|/kəmˈpoʊ.nənt/|n.|零件|Electronic component.|電子零件。",
-            "Defect|/ˈdiː.fekt/|n.|瑕疵|Zero defect.|零瑕疵。",
-            "Deliver|/dɪˈlɪv.ɚ/|v.|運送|Deliver pizza.|運送披薩。",
-            "Equipment|/ɪˈkwɪp.mənt/|n.|設備|Heavy equipment.|重型設備。",
-            "Factory|/ˈfæk.tɚ.i/|n.|工廠|Car factory.|汽車工廠。",
-            "Inspect|/ɪnˈspekt/|v.|檢查|Inspect machine.|檢查機器。",
-            "Maintain|/meɪnˈteɪn/|v.|維護|Maintain car.|保養車子。",
-            "Material|/məˈtɪr.i.əl/|n.|材料|Raw material.|原物料。",
-            "Output|/ˈaʊt.pʊt/|n.|產出|High output.|高產出。",
-            "Plant|/plænt/|n.|工廠|Power plant.|發電廠。",
-            "Produce|/prəˈduːs/|v.|生產|Produce goods.|生產貨物。",
-            "Product|/ˈprɑː.dʌkt/|n.|產品|New product.|新產品。",
-            "Quality|/ˈkwɑː.lə.t̬i/|n.|品質|High quality.|高品質。",
-            "Quantity|/ˈkwɑːn.t̬ə.t̬i/|n.|數量|Large quantity.|大量。",
-            "Sample|/ˈsæm.pəl/|n.|樣品|Product sample.|產品樣品。",
-            "Shipment|/ˈʃɪp.mənt/|n.|貨物|Receive shipment.|收到貨物。",
-            "Storage|/ˈstɔːr.ɪdʒ/|n.|儲存|Cold storage.|冷藏。",
-            "Transport|/trænsˈpɔːrt/|v.|運輸|Public transport.|大眾運輸。",
-            "Agreement|/əˈɡriː.mənt/|n.|協議|Reach agreement.|達成協議。",
-            "Clause|/klɑːz/|n.|條款|Legal clause.|法律條款。",
-            "Condition|/kənˈdɪʃ.ən/|n.|條件|Terms and conditions.|條款與條件。",
-            "Lawyer|/ˈlɑː.jɚ/|n.|律師|Hire a lawyer.|聘請律師。",
-            "Legal|/ˈliː.ɡəl/|adj.|法律的|Legal advice.|法律建議。",
-            "License|/ˈlaɪ.səns/|n.|執照|Driving license.|駕照。",
-            "Policy|/ˈpɑː.lə.si/|n.|政策|Return policy.|退貨政策。",
-            "Provision|/prəˈvɪʒ.ən/|n.|條款|Contract provision.|合約條款。",
-            "Sign|/saɪn/|v.|簽署|Sign here.|簽這裡。",
-            "Signature|/ˈsɪɡ.nə.tʃɚ/|n.|簽名|Digital signature.|數位簽章。",
-            "Sue|/suː/|v.|控告|Sue for damages.|控告賠償。",
-            "Term|/tɝːm/|n.|條款/期限|Long term.|長期的。",
-            "Clinic|/ˈklɪn.ɪk/|n.|診所|Dental clinic.|牙醫診所。",
-            "Cure|/kjʊr/|n.|療法|Cure for cancer.|癌症療法。",
-            "Dentist|/ˈden.tɪst/|n.|牙醫|Visit dentist.|看牙醫。",
-            "Diet|/ˈdaɪ.ət/|n.|飲食|Healthy diet.|健康飲食。",
-            "Disease|/dɪˈziːz/|n.|疾病|Heart disease.|心臟病。",
-            "Doctor|/ˈdɑːk.tɚ/|n.|醫生|See a doctor.|看醫生。",
-            "Drug|/drʌɡ/|n.|藥物|Drug store.|藥局。",
-            "Exercise|/ˈek.sɚ.saɪz/|n.|運動|Do exercise.|做運動。",
-            "Health|/helθ/|n.|健康|Mental health.|心理健康。",
-            "Hospital|/ˈhɑː.spɪ.t̬əl/|n.|醫院|Go to hospital.|去醫院。",
-            "Illness|/ˈɪl.nəs/|n.|疾病|Serious illness.|重病。",
-            "Insurance|/ɪnˈʃʊr.əns/|n.|保險|Health insurance.|健康保險。",
-            "Medicine|/ˈmed.ɪ.sən/|n.|藥|Take medicine.|吃藥。",
-            "Nurse|/nɝːs/|n.|護士|Registered nurse.|註冊護士。",
-            "Patient|/ˈpeɪ.ʃənt/|n.|病人|Hospital patient.|住院病人。",
-            "Pharmacy|/ˈfɑːr.mə.si/|n.|藥局|Go to pharmacy.|去藥局。",
-            "Prescription|/prɪˈskrɪp.ʃən/|n.|處方箋|Doctor's prescription.|醫生處方。",
-            "Surgery|/ˈsɝː.dʒər.i/|n.|手術|Major surgery.|大手術。",
-            "Symptom|/ˈsɪmp.təm/|n.|症狀|Flu symptoms.|流感症狀。",
-            "Treatment|/ˈtriːt.mənt/|n.|治療|Medical treatment.|醫療。",
-            "Virus|/ˈvaɪ.rəs/|n.|病毒|Fight virus.|對抗病毒。",
-            "Apartment|/əˈpɑːrt.mənt/|n.|公寓|Rent apartment.|租公寓。",
-            "Architect|/ˈɑːr.kə.tekt/|n.|建築師|Famous architect.|知名建築師。",
-            "Basement|/ˈbeɪs.mənt/|n.|地下室|Dark basement.|黑暗的地下室。",
-            "Build|/bɪld/|v.|建造|Build a house.|蓋房子。",
-            "Building|/ˈbɪl.dɪŋ/|n.|建築物|Office building.|辦公大樓。",
-            "Construction|/kənˈstrʌk.ʃən/|n.|建築|Under construction.|施工中。",
-            "Design|/dɪˈzaɪn/|n.|設計|Interior design.|室內設計。",
-            "Elevator|/ˈel.ə.veɪ.t̬ɚ/|n.|電梯|Take the elevator.|搭電梯。",
-            "Estate|/ɪˈsteɪt/|n.|地產|Real estate.|房地產。",
-            "Floor|/flɔːr/|n.|樓層/地板|Second floor.|二樓。",
-            "Furniture|/ˈfɝː.nɪ.tʃɚ/|n.|家具|Office furniture.|辦公家具。",
-            "Garden|/ˈɡɑːr.dən/|n.|花園|Rose garden.|玫瑰園。",
-            "House|/haʊs/|n.|房子|Buy a house.|買房子。",
-            "Kitchen|/ˈkɪtʃ.ən/|n.|廚房|Clean kitchen.|清理廚房。",
-            "Landlord|/ˈlænd.lɔːrd/|n.|房東|Pay landlord.|付錢給房東。",
-            "Location|/loʊˈkeɪ.ʃən/|n.|地點|Prime location.|黃金地段。",
-            "Property|/ˈprɑː.pɚ.t̬i/|n.|財產/房產|Private property.|私人財產。",
-            "Rent|/rent/|n.|租金|Monthly rent.|月租金。",
-            "Resident|/ˈrez.ə.dənt/|n.|居民|Local resident.|當地居民。",
-            "Room|/ruːm/|n.|房間|Living room.|客廳。",
-            "Structure|/ˈstrʌk.tʃɚ/|n.|結構|Steel structure.|鋼骨結構。",
-            "Tenant|/ˈten.ənt/|n.|房客|Good tenant.|好房客。",
-            "Accountant|/əˈkaʊn.t̬ənt/|n.|會計師|Hire an accountant.|聘請會計師。",
-            "Actor|/ˈæk.tɚ/|n.|演員|Movie actor.|電影演員。",
-            "Artist|/ˈɑːr.t̬ɪst/|n.|藝術家|Talented artist.|有才華的藝術家。",
-            "Baker|/ˈbeɪ.kɚ/|n.|麵包師|Local baker.|當地麵包師。",
-            "Chef|/ʃef/|n.|主廚|Head chef.|行政主廚。",
-            "Clerk|/klɝːk/|n.|店員|Sales clerk.|店員。",
-            "Cook|/kʊk/|n.|廚師|Good cook.|好廚師。",
-            "Dentist|/ˈden.tɪst/|n.|牙醫|Visit dentist.|看牙醫。",
-            "Designer|/dɪˈzaɪ.nɚ/|n.|設計師|Fashion designer.|服裝設計師。",
-            "Driver|/ˈdraɪ.vɚ/|n.|司機|Bus driver.|公車司機。",
-            "Editor|/ˈed.ɪ.t̬ɚ/|n.|編輯|Chief editor.|總編輯。",
-            "Engineer|/ˌen.dʒɪˈnɪr/|n.|工程師|Software engineer.|軟體工程師。",
-            "Farmer|/ˈfɑːr.mɚ/|n.|農夫|Dairy farmer.|酪農。",
-            "Guard|/ɡɑːrd/|n.|警衛|Security guard.|保全。",
-            "Guide|/ɡaɪd/|n.|導遊|Tour guide.|導遊。",
-            "Judge|/dʒʌdʒ/|n.|法官|Supreme court judge.|最高法院法官。",
-            "Lawyer|/ˈlɑː.jɚ/|n.|律師|Defense lawyer.|辯護律師。",
-            "Manager|/ˈmæn.ə.dʒɚ/|n.|經理|General manager.|總經理。",
-            "Mechanic|/məˈkæn.ɪk/|n.|技工|Car mechanic.|汽車修護工。",
-            "Musician|/mjuːˈzɪʃ.ən/|n.|音樂家|Jazz musician.|爵士音樂家。",
-            "Nurse|/nɝːs/|n.|護士|School nurse.|校護。",
-            "Officer|/ˈɑː.fɪ.sɚ/|n.|官員/警官|Police officer.|警官。",
-            "Painter|/ˈpeɪn.t̬ɚ/|n.|畫家|Portrait painter.|肖像畫家。",
-            "Photographer|/fəˈtɑː.ɡrə.fɚ/|n.|攝影師|Wedding photographer.|婚禮攝影師。",
-            "Pilot|/ˈpaɪ.lət/|n.|飛行員|Test pilot.|試飛員。",
-            "Plumber|/ˈplʌm.ɚ/|n.|水電工|Call a plumber.|叫水電工。",
-            "Police|/pəˈliːs/|n.|警察|Call the police.|報警。",
-            "Politician|/ˌpɑː.ləˈtɪʃ.ən/|n.|政治家|Local politician.|地方政治人物。",
-            "Professor|/prəˈfes.ɚ/|n.|教授|University professor.|大學教授。",
-            "Receptionist|/rɪˈsep.ʃən.ɪst/|n.|接待員|Front desk receptionist.|櫃台接待員。",
-            "Reporter|/rɪˈpɔːr.t̬ɚ/|n.|記者|News reporter.|新聞記者。",
-            "Scientist|/ˈsaɪən.tɪst/|n.|科學家|Rocket scientist.|火箭科學家。",
-            "Secretary|/ˈsek.rə.ter.i/|n.|秘書|Private secretary.|私人秘書。",
-            "Singer|/ˈsɪŋ.ɚ/|n.|歌手|Pop singer.|流行歌手。",
-            "Soldier|/ˈsoʊl.dʒɚ/|n.|士兵|Brave soldier.|勇敢的士兵。",
-            "Student|/ˈstuː.dənt/|n.|學生|College student.|大學生。",
-            "Teacher|/ˈtiː.tʃɚ/|n.|老師|English teacher.|英文老師。",
-            "Waiter|/ˈweɪ.t̬ɚ/|n.|服務生|Ask the waiter.|問服務生。",
-            "Writer|/ˈraɪ.t̬ɚ/|n.|作家|Fiction writer.|小說家。",
-            "Airport|/ˈer.pɔːrt/|n.|機場|International airport.|國際機場。",
-            "Baggage|/ˈbæɡ.ɪdʒ/|n.|行李|Baggage claim.|行李提領處。",
-            "Book|/bʊk/|v.|預訂|Book a flight.|訂機票。",
-            "Cancel|/ˈkæn.səl/|v.|取消|Cancel the trip.|取消行程。",
-            "Delay|/dɪˈleɪ/|n.|延誤|Flight delay.|班機延誤。",
-            "Depart|/dɪˈpɑːrt/|v.|出發|Depart on time.|準時出發。",
-            "Destination|/ˌdes.təˈneɪ.ʃən/|n.|目的地|Final destination.|最終目的地。",
-            "Flight|/flaɪt/|n.|班機|Book a flight.|訂班機。",
-            "Guide|/ɡaɪd/|n.|指南/導遊|Travel guide.|旅遊指南。",
-            "Hotel|/hoʊˈtel/|n.|飯店|Book a hotel.|訂飯店。",
-            "Journey|/ˈdʒɝː.ni/|n.|旅程|Safe journey.|旅途平安。",
-            "Luggage|/ˈlʌɡ.ɪdʒ/|n.|行李|Lost luggage.|遺失行李。",
-            "Map|/mæp/|n.|地圖|City map.|城市地圖。",
-            "Passport|/ˈpæs.pɔːrt/|n.|護照|Renew passport.|換發護照。",
-            "Passenger|/ˈpæs.ən.dʒɚ/|n.|乘客|Train passenger.|火車乘客。",
-            "Platform|/ˈplæt.fɔːrm/|n.|月台|Train platform.|火車月台。",
-            "Reservation|/ˌrez.ɚˈveɪ.ʃən/|n.|預約|Make a reservation.|預約。",
-            "Route|/ruːt/|n.|路線|Bus route.|公車路線。",
-            "Seat|/siːt/|n.|座位|Window seat.|靠窗座位。",
-            "Subway|/ˈsʌb.weɪ/|n.|地鐵|Take the subway.|搭地鐵。",
-            "Suitcase|/ˈsuːt.keɪs/|n.|手提箱|Pack a suitcase.|打包手提箱。",
-            "Ticket|/ˈtɪk.ɪt/|n.|票|Train ticket.|火車票。",
-            "Tour|/tʊr/|n.|旅遊|City tour.|城市導覽。",
-            "Tourist|/ˈtʊr.ɪst/|n.|遊客|Foreign tourist.|外國遊客。",
-            "Train|/treɪn/|n.|火車|Catch a train.|趕火車。",
-            "Travel|/ˈtræv.əl/|v.|旅行|Travel abroad.|出國旅行。",
-            "Trip|/trɪp/|n.|旅行|Business trip.|出差。",
-            "Vacation|/veɪˈkeɪ.ʃən/|n.|假期|Summer vacation.|暑假。",
-            "Visa|/ˈviː.zə/|n.|簽證|Tourist visa.|觀光簽證。",
-            "Visit|/ˈvɪz.ɪt/|v.|拜訪|Visit a museum.|參觀博物館。"
-        ];
+            "Agenda|/əˈdʒen.də/|n.|議程|The agenda is set.^議程已設定。^item on the agenda^議程上的項目^copy of the agenda^議程的副本",
+            "Budget|/ˈbʌdʒ.ɪt/|n.|預算|within budget^在預算內^tight budget^預算吃緊^budget cut^預算刪減",
+            "Colleague|/ˈkɑː.liːɡ/|n.|同事|senior colleague^資深同事^trusted colleague^值得信賴的同事^meet a colleague^見一位同事",
+            "Deadline|/ˈded.laɪn/|n.|截止期限|meet the deadline^趕上截止期限^miss the deadline^錯過截止期限^tight deadline^緊迫的期限",
+            "Executive|/ɪɡˈzek.jə.tɪv/|n.|高階主管|chief executive^執行長^senior executive^資深主管^executive decision^決策",
+            "Feedback|/ˈfiːd.bæk/|n.|回饋|give feedback^給予回饋^positive feedback^正面的回饋^customer feedback^客戶回饋",
+            "Guarantee|/ˌɡær.ənˈtiː/|v.|保證|satisfaction guaranteed^保證滿意^money-back guarantee^退款保證^under guarantee^在保固期內",
+            "Implement|/ˈɪm.plə.ment/|v.|實施|implement a plan^實施計畫^implement changes^實施變更^fully implemented^完全實施",
+            "Lucrative|/ˈluː.krə.tɪv/|adj.|賺錢的|lucrative business^賺錢的生意^lucrative contract^利潤豐厚的合約^highly lucrative^非常賺錢",
+            "Merger|/ˈmɝː.dʒɚ/|n.|合併|merger and acquisition^合併與收購^proposed merger^提議的合併^merger talks^合併談判",
+            "Negotiate|/nəˈɡoʊ.ʃi.eɪt/|v.|談判|negotiate a price^談判價格^negotiate a contract^談判合約^negotiate terms^談判條款",
+            "Recruit|/rɪˈkruːt/|v.|招募|recruit new staff^招募新員工^recruit talent^招募人才^actively recruit^積極招募",
+            "Resume|/rɪˈzuːm/|n.|履歷表|submit a resume^提交履歷^send a resume^寄送履歷^resume and cover letter^履歷與求職信",
+            "Penalty|/ˈpen.əl.ti/|n.|罰款|pay a penalty^支付罰款^face a penalty^面臨罰款^death penalty^死刑",
+            "Itinerary|/laɪˈə.bəl/|n.|行程表|travel itinerary^旅遊行程^detailed itinerary^詳細行程^plan an itinerary^規劃行程",
+            "Asset|/ˈæs.et/|n.|資產|valuable asset^寶貴資產^company asset^公司資產^liquid asset^流動資產",
+            "Deficit|/ˈdef.ə.sɪt/|n.|赤字|budget deficit^預算赤字^trade deficit^貿易赤字^reduce the deficit^減少赤字",
+            "Portfolio|/ˌpɔːrtˈfoʊ.li.oʊ/|n.|作品集/投資組合|investment portfolio^投資組合^design portfolio^設計作品集^diverse portfolio^多樣化的組合",
+            "Refund|/ˈriː.fʌnd/|n.|退款|full refund^全額退款^demand a refund^要求退款^non-refundable^不可退款的",
+            "Valid|/ˈvæl.ɪd/|adj.|有效的|valid passport^有效護照^valid reason^正當理由^remain valid^保持有效",
+            "Acquire|/əˈkwaɪɚ/|v.|收購/獲得|acquire a company^收購公司^acquire skills^獲得技能^acquire knowledge^獲取知識",
+            "Bankruptcy|/ˈbæŋ.krʌpt.si/|n.|破產|file for bankruptcy^申請破產^face bankruptcy^面臨破產^declare bankruptcy^宣告破產",
+            "Capacity|/kəˈpæs.ə.t̬i/|n.|容量/能力|full capacity^產能滿載^seating capacity^座位容量^storage capacity^儲存容量",
+            "Collaborate|/kəˈlæb.ə.reɪt/|v.|合作|collaborate with^與...合作^collaborate on^在...上合作^close collaboration^密切合作",
+            "Designate|/ˈdez.ɪɡ.neɪt/|v.|指定|designated area^指定區域^designated driver^指定駕駛^designated smoking area^指定吸菸區",
+            "Fluctuate|/ˈflʌk.tʃu.eɪt/|v.|波動|prices fluctuate^價格波動^fluctuate wildly^劇烈波動^market fluctuations^市場波動",
+            "Mandatory|/ˈmæn.də.tɔː.ri/|adj.|強制的|mandatory training^強制訓練^mandatory retirement^強制退休^it is mandatory^這是強制的",
+            "Launch|/lɑːntʃ/|v.|發布/上市|launch a product^發布產品^launch a campaign^發起活動^official launch^正式發布",
+            "Nominate|/ˈnɑː.mə.neɪt/|v.|提名|nominate a candidate^提名候選人^nominate for an award^提名獎項^be nominated^被提名",
+            "Renovate|/ˈren.ə.veɪt/|v.|整修|renovate the office^整修辦公室^newly renovated^新裝修的^closed for renovation^關閉整修中"
+        ];
 
-        const DB = RAW_DB.map(l => { const p = l.split('|'); return { w:p[0], pho:p[1], t:p[2], m:p[3], s:p[4], sc:p[5] }});
-        function getQ() { 
-            const q = DB[Math.floor(Math.random()*DB.length)];
-            let o = [q.m]; while(o.length<3) { let r=DB[Math.floor(Math.random()*DB.length)].m; if(!o.includes(r)) o.push(r); }
-            return {...q, opts: o.sort(()=>Math.random()-0.5)};
-        }
+        // 解析資料
+        const DB = RAW_DATA.map(line => {
+            const p = line.split('|');
+            // 解析例句部分 (用 ^ 分隔)
+            const sents = p[4].split('^');
+            let formattedSents = [];
+            for(let i=0; i<sents.length; i+=2) {
+                if(sents[i+1]) formattedSents.push({ en: sents[i], cn: sents[i+1] });
+            }
+            
+            return { 
+                w: p[0], pho: p[1], t: p[2], m: p[3], 
+                sentences: formattedSents
+            };
+        });
 
-        // 遊戲核心
-        const GRID=15, TILE=6.66;
-        const STATE = {lv:1, hp:3, key:0, pause:false, bombs:1, range:2, ammo:3};
-        let map=[], enemies=[], bombs=[], player={gx:1,gy:1,el:null}, curBomb=null, curQ=null;
-        const input={u:false,d:false,l:false,r:false};
+        // 遊戲核心邏輯
+        const GRID = 15, TILE = 6.666;
+        const STATE = { lv:1, hp:3, key:0, pause:false, bombs:1, range:2, ammo:5 }; // 初始給5顆
+        let map=[], enemies=[], bombs=[], player={gx:1,gy:1,el:null}, curQ=null;
+        const input = {u:false,d:false,l:false,r:false};
 
-        const dom = {
-            grid: document.getElementById('grid-layer'),
-            item: document.getElementById('item-layer'),
-            obj: document.getElementById('bomb-layer'),
-            ent: document.getElementById('entity-layer'),
-            player: document.getElementById('player'),
-            quiz: document.getElementById('quiz-modal'),
-            hud: { hp: document.getElementById('ui-hp'), lv: document.getElementById('ui-lv'), key: document.getElementById('ui-key'), ammo: document.getElementById('ui-ammo') },
-            q: { w: document.getElementById('q-w'), p: document.getElementById('q-p'), t: document.getElementById('q-t'), s: document.getElementById('q-s'), box: document.getElementById('opt-box') }
-        };
+        const dom = {
+            grid: document.getElementById('layer-grid'),
+            item: document.getElementById('layer-item'),
+            obj: document.getElementById('layer-obj'),
+            ent: document.getElementById('layer-ent'),
+            player: document.getElementById('player'),
+            quiz: document.getElementById('quiz-layer'),
+            hud: { hp: document.getElementById('ui-hp'), lv: document.getElementById('ui-lv'), key: document.getElementById('ui-key'), ammo: document.getElementById('ui-ammo') },
+            q: { w: document.getElementById('q-w'), p: document.getElementById('q-p'), t: document.getElementById('q-t'), box: document.getElementById('opt-box') },
+            learn: document.getElementById('learn-area'),
+            learnContent: document.getElementById('sent-content'),
+            closeBtn: document.getElementById('close-quiz-btn')
+        };
 
-        const userImg = new Image();
-        userImg.src = '肥貓.gif';
-        userImg.onload = () => { dom.player.style.backgroundImage = "url('肥貓.gif')"; dom.player.classList.remove('fallback-cat'); };
+        // 圖片
+        const img = new Image(); img.src = '肥貓.gif';
+        img.onload = () => { dom.player.style.backgroundImage = "url('肥貓.gif')"; };
+        img.onerror = () => { dom.player.innerText = "🐱"; dom.player.style.backgroundImage = "none"; };
 
-        function init() {
-            if('ontouchstart' in window) document.getElementById('controls').style.display='flex';
-            startLevel(1); loop();
-        }
+        function init() {
+            startLevel(1);
+            loop();
+        }
 
-        function startLevel(lv) {
-            STATE.lv=lv; STATE.key=0; STATE.pause=false; STATE.range=2+Math.floor(lv/3);
-            dom.grid.innerHTML=''; dom.item.innerHTML=''; dom.obj.innerHTML=''; dom.ent.innerHTML='';
-            bombs=[]; enemies=[]; map=[];
-            
-            for(let y=0; y<GRID; y++) {
-                let row=[];
-                for(let x=0; x<GRID; x++) {
-                    const el=document.createElement('div'); el.className='cell'; el.style.left=x*TILE+'%'; el.style.top=y*TILE+'%'; el.id=`c-${x}-${y}`;
-                    if(x===0||x===GRID-1||y===0||y===GRID-1||(x%2===0&&y%2===0)) { row.push(1); el.classList.add('wall'); }
-                    else if(x<3&&y<3) { row.push(0); }
-                    else if(Math.random()<0.3) { row.push(2); el.classList.add('brick'); }
-                    else row.push(0);
-                    dom.grid.appendChild(el);
-                }
-                map.push(row);
-            }
-            let bricks=[]; for(let y=0; y<GRID; y++) for(let x=0; x<GRID; x++) if(map[y][x]===2) bricks.push({x,y});
-            if(bricks.length>2) {
-                let k=bricks.splice(Math.floor(Math.random()*bricks.length),1)[0]; map[k.y][k.x]=-4;
-                let d=bricks.splice(Math.floor(Math.random()*bricks.length),1)[0]; map[d.y][d.x]=-3;
-            }
-            
-            const types=['🦠','👿','👻'];
-            for(let i=0; i<3+lv; i++) {
-                let x,y; do{x=Math.floor(Math.random()*GRID); y=Math.floor(Math.random()*GRID);} while(map[y][x]!==0 || (x<5&&y<5));
-                const el=document.createElement('div'); el.className='enemy'; el.innerText=types[i%3];
-                dom.ent.appendChild(el);
-                enemies.push({x,y,el,timer:0,speed:Math.max(15, 40-lv*2)});
-            }
-            updateHUD();
-            player.gx=1; player.gy=1; updatePlayer();
-        }
+        function startLevel(lv) {
+            STATE.lv = lv; STATE.key = 0; STATE.pause = false;
+            STATE.range = 2 + Math.floor(lv/3);
+            
+            dom.grid.innerHTML=''; dom.item.innerHTML=''; dom.obj.innerHTML=''; dom.ent.innerHTML='';
+            bombs=[]; enemies=[]; map=[];
 
-        function loop() {
-            if(!STATE.pause) { movePlayer(); moveEnemies(); updateBombs(); }
-            requestAnimationFrame(loop);
-        }
+            for(let y=0; y<GRID; y++) {
+                let row = [];
+                for(let x=0; x<GRID; x++) {
+                    const el=document.createElement('div'); el.className='cell';
+                    el.style.left=(x*TILE)+'%'; el.style.top=(y*TILE)+'%'; el.id=`c-${x}-${y}`;
+                    if(x===0||x===GRID-1||y===0||y===GRID-1||(x%2===0&&y%2===0)) { row.push(1); el.classList.add('wall'); }
+                    else if(x<3&&y<3) { row.push(0); }
+                    else { if(Math.random()<0.3) { row.push(2); el.classList.add('brick'); } else row.push(0); }
+                    dom.grid.appendChild(el);
+                }
+                map.push(row);
+            }
 
-        let moveCD = 0;
-        function movePlayer() {
-            if(moveCD > 0) {
-                moveCD--;
-                return;
-            }
-            
-            let dx = 0, dy = 0;
-            if(input.u) dy = -1;
-            else if(input.d) dy = 1;
-            else if(input.l) dx = -1;
-            else if(input.r) dx = 1;
+            let bricks=[]; for(let y=0; y<GRID; y++) for(let x=0; x<GRID; x++) if(map[y][x]===2) bricks.push({x,y});
+            if(bricks.length>2) {
+                let k=bricks.splice(Math.floor(Math.random()*bricks.length),1)[0]; map[k.y][k.x]=-4;
+                let d=bricks.splice(Math.floor(Math.random()*bricks.length),1)[0]; map[d.y][d.x]=-3;
+            }
 
-            if(dx || dy) {
-                let nx = player.gx + dx;
-                let ny = player.gy + dy;
-                
-                // 檢查邊界
-                if(nx < 0 || nx >= GRID || ny < 0 || ny >= GRID) return;
+            const count=2+Math.floor(lv/2);
+            for(let i=0; i<count; i++) {
+                let x,y; do{x=Math.floor(Math.random()*GRID); y=Math.floor(Math.random()*GRID);} while(map[y][x]!==0 || (x<5&&y<5));
+                const el=document.createElement('div'); el.className='enemy'; el.innerText=['🦠','👿','👻'][i%3];
+                dom.ent.appendChild(el);
+                enemies.push({x,y,el,timer:0,speed:Math.max(10,40-lv*2)});
+            }
+            updateHUD(); player.gx=1; player.gy=1; updatePlayer();
+        }
 
-                let cell = map[ny][nx];
-                let bomb = bombs.find(b => b.x === nx && b.y === ny && !b.pass);
-                
-                if((cell <= 0 || cell === 3 || cell === 4) && !bomb) {
-                    player.gx = nx;
-                    player.gy = ny;
-                    updatePlayer();
-                    checkItem();
-                    moveCD = 4; // ★ 修正：從8改為4，移動更流暢
-                    
-                    // 離開炸彈後，炸彈變為實體
-                    bombs.forEach(b => { 
-                        if(b.x !== player.gx || b.y !== player.gy) b.pass = false; 
-                    });
-                }
-            }
-        }
-        function updatePlayer() { dom.player.style.left=player.gx*TILE+'%'; dom.player.style.top=player.gy*TILE+'%'; }
+        function loop() {
+            if(!STATE.pause) { movePlayer(); moveEnemies(); updateBombs(); }
+            requestAnimationFrame(loop);
+        }
 
-        function moveEnemies() {
-            enemies.forEach(e=>{
-                if(e.x===player.gx && e.y===player.gy) hit();
-                if(e.timer>0) {e.timer--; return;}
-                e.timer=e.speed;
-                const dirs=[[0,1],[0,-1],[1,0],[-1,0]];
-                let moved=false, trys=0;
-                while(!moved && trys<4) {
-                    let d=dirs[Math.floor(Math.random()*4)];
-                    let nx=e.x+d[0], ny=e.y+d[1];
-                    if(nx>=0 && nx<GRID && ny>=0 && ny<GRID) {
-                        let cell = map[ny][nx];
-                        let bomb = bombs.find(b=>b.x===nx&&b.y===ny);
-                        if(cell<=0 && !bomb) {
-                            e.x=nx; e.y=ny; moved=true;
-                            e.el.style.left=e.x*TILE+'%'; e.el.style.top=e.y*TILE+'%';
-                        }
-                    }
-                    trys++;
-                }
-                if(e.x===player.gx && e.y===player.gy) hit();
-            });
-        }
-        function hit() { STATE.hp--; updateHUD(); if(STATE.hp<=0) { alert('Game Over'); startLevel(STATE.lv); STATE.hp=3; updateHUD(); } else { player.gx=1; player.gy=1; updatePlayer(); } }
+        let cd=0;
+        function movePlayer() {
+            if(cd>0) {cd--; return;}
+            let dx=0,dy=0;
+            if(input.u) dy=-1; else if(input.d) dy=1; else if(input.l) dx=-1; else if(input.r) dx=1;
+            if(dx||dy) {
+                let nx=player.gx+dx, ny=player.gy+dy;
+                if(nx<0||nx>=GRID||ny<0||ny>=GRID) return;
+                let cell=map[ny][nx];
+                let bomb=bombs.find(b=>b.x===nx && b.y===ny && !b.pass);
+                if((cell<=0||cell===3||cell===4) && !bomb) {
+                    player.gx=nx; player.gy=ny; updatePlayer(); checkItem(); cd=6;
+                    bombs.forEach(b=>{if(b.x!==player.gx||b.y!==player.gy) b.pass=false;});
+                }
+            }
+        }
+        function updatePlayer() { dom.player.style.left=(player.gx*TILE)+'%'; dom.player.style.top=(player.gy*TILE)+'%'; }
 
-        function placeBomb() {
-            if(STATE.pause) return;
-            if(STATE.ammo<=0) {
-                let btn = document.getElementById('reload-btn');
-                btn.style.background = 'red'; setTimeout(()=>btn.style.background='#0984e3', 200);
-                return;
-            }
-            if(bombs.find(b=>b.x===player.gx&&b.y===player.gy)) return;
+        function moveEnemies() {
+            enemies.forEach(e=>{
+                if(e.x===player.gx && e.y===player.gy) hitPlayer();
+                if(e.timer>0) {e.timer--; return;}
+                e.timer=e.speed;
+                const dirs=[[0,1],[0,-1],[1,0],[-1,0]];
+                let moved=false, tries=0;
+                while(!moved && tries<4) {
+                    let d=dirs[Math.floor(Math.random()*4)];
+                    let nx=e.x+d[0], ny=e.y+d[1];
+                    if(nx>=0&&nx<GRID&&ny>=0&&ny<GRID) {
+                        if(map[ny][nx]<=0 && !bombs.find(b=>b.x===nx&&b.y===ny)) {
+                            e.x=nx; e.y=ny; e.el.style.left=(e.x*TILE)+'%'; e.el.style.top=(e.y*TILE)+'%'; moved=true;
+                        }
+                    }
+                    tries++;
+                }
+                if(e.x===player.gx && e.y===player.gy) hitPlayer();
+            });
+        }
+        function hitPlayer() { STATE.hp--; updateHUD(); if(STATE.hp<=0) { alert('Game Over!'); startLevel(STATE.lv); STATE.hp=3; updateHUD(); } }
 
-            STATE.ammo--; updateHUD();
-            const el=document.createElement('div'); el.className='bomb';
-            el.style.left=player.gx*TILE+'%'; el.style.top=player.gy*TILE+'%';
-            dom.obj.appendChild(el);
-            // 3秒後爆炸
-            bombs.push({x:player.gx, y:player.gy, el:el, tick:180, pass:true});
-        }
+        function checkItem() {
+            let c=map[player.gy][player.gx];
+            if(c===4) { STATE.key=1; map[player.gy][player.gx]=0; document.getElementById(`item-${player.gx}-${player.gy}`).remove(); updateHUD(); }
+            else if(c===3 && STATE.key) { alert('Level Up!'); startLevel(STATE.lv+1); }
+        }
 
-        function updateBombs() {
-            for(let i=bombs.length-1; i>=0; i--) {
-                let b = bombs[i];
-                if(!STATE.pause) b.tick--;
-                if(b.tick>120) b.el.style.transform='scale(1)';
-                else if(b.tick>60) b.el.style.borderColor='yellow';
-                else { b.el.style.borderColor='red'; b.el.classList.add('critical'); }
-                
-                if(b.tick<=0) { explode(b); bombs.splice(i,1); }
-            }
-        }
+        function placeBomb() {
+            if(STATE.pause) return;
+            if(STATE.ammo<=0) { let b=document.getElementById('reload-btn'); b.style.background='red'; setTimeout(()=>b.style.background='#0984e3',200); return; }
+            if(bombs.find(b=>b.x===player.gx && b.y===player.gy)) return;
+            STATE.ammo--; updateHUD();
+            const el=document.createElement('div'); el.className='bomb';
+            el.style.left=(player.gx*TILE)+'%'; el.style.top=(player.gy*TILE)+'%';
+            dom.obj.appendChild(el);
+            bombs.push({x:player.gx, y:player.gy, el:el, tick:180, pass:true});
+        }
 
-        function explode(b) {
-            b.el.remove();
-            let hits=[{x:b.x, y:b.y}];
-            [[0,1],[0,-1],[1,0],[-1,0]].forEach(d=>{
-                for(let i=1; i<=STATE.range; i++) {
-                    let nx=b.x+d[0]*i, ny=b.y+d[1]*i;
-                    if(nx<0||nx>=GRID||ny<0||ny>=GRID) break;
-                    if(map[ny][nx]===1) break;
-                    hits.push({x:nx, y:ny});
-                    if(map[ny][nx]===2 || map[ny][nx]<0) { breakBrick(nx,ny); break; }
-                }
-            });
-            hits.forEach(h=>{
-                const f=document.createElement('div'); f.className='fire';
-                f.style.left=h.x*TILE+'%'; f.style.top=h.y*TILE+'%';
-                dom.obj.appendChild(f); setTimeout(()=>f.remove(), 500);
-                if(player.gx===h.x && player.gy===h.y) hit();
-                for(let i=enemies.length-1; i>=0; i--) {
-                    if(enemies[i].x===h.x && enemies[i].y===h.y) { enemies[i].el.remove(); enemies.splice(i,1); }
-                }
-            });
-        }
+        function updateBombs() {
+            for(let i=bombs.length-1; i>=0; i--) {
+                let b=bombs[i]; b.tick--;
+                if(b.tick<=0) { explode(b); bombs.splice(i,1); }
+            }
+        }
 
-        function breakBrick(x,y) {
-            const el=document.getElementById(`c-${x}-${y}`);
-            el.classList.remove('brick');
-            if(map[y][x]===-4) { map[y][x]=4; const item=document.createElement('div'); item.className='cell key'; item.innerText='🔑'; item.id=`item-${x}-${y}`; item.style.left=x*TILE+'%'; item.style.top=y*TILE+'%'; dom.item.appendChild(item); }
-            else if(map[y][x]===-3) { map[y][x]=3; el.classList.add('door'); el.innerText='🚪'; }
-            else map[y][x]=0;
-        }
+        function explode(b) {
+            b.el.remove();
+            let hits=[{x:b.x, y:b.y}];
+            [[0,1],[0,-1],[1,0],[-1,0]].forEach(d=>{
+                for(let i=1; i<=STATE.range; i++) {
+                    let nx=b.x+d[0]*i, ny=b.y+d[1]*i;
+                    if(nx<0||nx>=GRID||ny<0||ny>=GRID) break;
+                    if(map[ny][nx]===1) break;
+                    hits.push({x:nx, y:ny});
+                    if(map[ny][nx]===2 || map[ny][nx]<0) { breakBrick(nx,ny); break; }
+                }
+            });
+            hits.forEach(h=>{
+                const f=document.createElement('div'); f.className='fire';
+                f.style.left=(h.x*TILE)+'%'; f.style.top=(h.y*TILE)+'%';
+                dom.obj.appendChild(f); setTimeout(()=>f.remove(), 500);
+                if(player.gx===h.x && player.gy===h.y) hitPlayer();
+                for(let i=enemies.length-1; i>=0; i--) { if(enemies[i].x===h.x && enemies[i].y===h.y) { enemies[i].el.remove(); enemies.splice(i,1); }}
+            });
+        }
 
-        function checkItem() {
-            let c=map[player.gy][player.gx];
-            if(c===4) { STATE.key=1; map[player.gy][player.gx]=0; document.getElementById(`item-${player.gx}-${player.gy}`).remove(); updateHUD(); }
-            else if(c===3 && STATE.key) { alert('下一關!'); startLevel(STATE.lv+1); }
-        }
+        function breakBrick(x,y) {
+            const el=document.getElementById(`c-${x}-${y}`); el.className='cell';
+            if(map[y][x]===-4) { map[y][x]=4; const i=document.createElement('div'); i.className='cell key'; i.innerText='🔑'; i.id=`item-${x}-${y}`; i.style.left=(x*TILE)+'%'; i.style.top=(y*TILE)+'%'; dom.item.appendChild(i); }
+            else if(map[y][x]===-3) { map[y][x]=3; el.classList.add('door'); el.innerText='🚪'; }
+            else map[y][x]=0;
+        }
 
-        function openQuiz(bomb, isRefill=false) {
-            STATE.pause=true; curBomb=bomb; dom.quiz.style.display='flex';
-            curQ = getQ();
-            dom.q.w.innerText=curQ.w; dom.q.p.innerText=curQ.pho; dom.q.t.innerText=curQ.t; dom.q.s.innerText=curQ.s;
-            dom.q.box.innerHTML='';
-            curQ.opts.forEach(o=>{
-                const b=document.createElement('div'); b.className='opt-btn'; b.innerText=o;
-                b.onclick=()=>check(o,b,isRefill); dom.q.box.appendChild(b);
-            });
-            speak(curQ.w);
-        }
+        function triggerQuiz() {
+            STATE.pause=true; dom.quiz.style.display='flex';
+            dom.learn.style.display='none'; dom.closeBtn.style.display='none'; dom.q.box.style.display='grid';
+            
+            const q = DB[Math.floor(Math.random()*DB.length)]; curQ=q;
+            dom.q.w.innerText=q.w; dom.q.p.innerText=q.pho; dom.q.t.innerText=q.t;
+            
+            let opts=[q.m]; while(opts.length<4) { let r=DB[Math.floor(Math.random()*DB.length)].m; if(!opts.includes(r)) opts.push(r); }
+            opts.sort(()=>Math.random()-0.5);
+            
+            dom.q.box.innerHTML='';
+            opts.forEach(o=>{
+                const b=document.createElement('div'); b.className='opt-btn'; b.innerText=o;
+                b.onclick=()=>check(o,b); dom.q.box.appendChild(b);
+            });
+            speak('word');
+        }
 
-        function check(ans, btn, isRefill) {
-            if(ans===curQ.m) {
-                btn.classList.add('correct');
-                if(isRefill) { STATE.ammo+=3; updateHUD(); }
-                speak(curQ.s);
-                setTimeout(()=>{ dom.quiz.style.display='none'; STATE.pause=false; },1500);
-            } else {
-                btn.classList.add('wrong'); speak("Try again");
-            }
-        }
+        function check(ans, btn) {
+            if(ans===curQ.m) {
+                btn.classList.add('correct');
+                // 顯示學習區
+                dom.q.box.style.display='none';
+                dom.learn.style.display='block';
+                dom.closeBtn.style.display='block';
+                
+                // 渲染多個例句
+                let html = '';
+                curQ.sentences.forEach(s => {
+                    html += `<div class="sent-row"><div class="en-text">${s.en}</div><div class="cn-text">${s.cn}</div></div>`;
+                });
+                dom.learnContent.innerHTML = html;
+                
+                speak('sent'); // 自動播放例句
+            } else {
+                btn.classList.add('wrong'); speakText("Try again");
+            }
+        }
 
-        function updateHUD() { dom.hud.hp.innerText=STATE.hp; dom.hud.lv.innerText=STATE.lv; dom.hud.key.innerText=STATE.key; dom.hud.ammo.innerText=STATE.ammo; }
-        function speak(txt) { window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(txt); u.lang='en-US'; window.speechSynthesis.speak(u); }
+        function closeQuiz() {
+            STATE.ammo += 5; updateHUD(); // 獎勵
+            dom.quiz.style.display='none'; STATE.pause=false;
+        }
 
-        window.onkeydown=e=>{if(e.key.includes('Arrow')) input[e.key[5].toLowerCase()]=true; if(e.key==' ') placeBomb();}
-        window.onkeyup=e=>{if(e.key.includes('Arrow')) input[e.key[5].toLowerCase()]=false;}
-        init();
-    </script>
+        function updateHUD() { dom.hud.hp.innerText=STATE.hp; dom.hud.lv.innerText=STATE.lv; dom.hud.key.innerText=STATE.key; dom.hud.ammo.innerText=STATE.ammo; }
+        
+        function speak(type) {
+            window.speechSynthesis.cancel();
+            let txt = "";
+            if(type==='word') txt = curQ.w;
+            else if(type==='sent') curQ.sentences.forEach(s => txt += s.en + ". ");
+            
+            const u=new SpeechSynthesisUtterance(txt); u.lang='en-US'; window.speechSynthesis.speak(u);
+        }
+        function speakText(t) { const u=new SpeechSynthesisUtterance(t); u.lang='en-US'; window.speechSynthesis.speak(u); }
+
+        window.onkeydown=e=>{if(e.key.includes('Arrow')) input[e.key[5].toLowerCase()]=true; if(e.key==' ') placeBomb();}
+        window.onkeyup=e=>{if(e.key.includes('Arrow')) input[e.key[5].toLowerCase()]=false;}
+
+        init();
+    </script>
 </body>
 </html>
