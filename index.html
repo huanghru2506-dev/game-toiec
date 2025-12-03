@@ -3,18 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>肥橘貓爆破王 v3.7 (修復版)</title>
+    <title>肥橘貓爆破王 v6.0 (最終完美版)</title>
     <style>
-        /* 強制鎖定畫面，防止誤觸 */
+        /* --- 核心設定：防誤觸、鎖定畫面 --- */
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
             overflow: hidden; position: fixed; background: #222;
             touch-action: none; -webkit-user-select: none; user-select: none;
-            font-family: 'Roboto Mono', monospace; color: white;
+            font-family: 'Segoe UI', sans-serif; color: white;
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* 主容器 (Flex置中) */
         #main-wrapper {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             width: 100%; height: 100%;
@@ -22,37 +21,39 @@
 
         /* HUD */
         #hud { 
-            width: 100%; max-width: 600px; padding: 10px; background: #333; 
+            width: 100%; max-width: 600px; padding: 8px 15px; background: #333; 
             display: flex; justify-content: space-between; align-items: center; 
             border-bottom: 2px solid #555; font-weight: bold; font-size: 0.9rem;
             flex-shrink: 0; z-index: 50;
         }
         .ammo-box { color: #f1c40f; border: 1px solid #f1c40f; padding: 2px 8px; border-radius: 4px; }
-        #reload-btn { background: #0984e3; color: white; border: none; padding: 5px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        #reload-btn { 
+            background: #0984e3; color: white; border: none; padding: 8px 15px; 
+            border-radius: 4px; font-weight: bold; cursor: pointer; 
+            animation: pulse-btn 2s infinite; font-size: 0.9rem;
+        }
+        @keyframes pulse-btn { 0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)} }
 
-        /* 遊戲舞台 (確保有寬高) */
+        /* 遊戲舞台 */
         #stage { 
-            position: relative; 
-            width: 90vmin; height: 90vmin; /* 視窗最小邊的 90% */
+            position: relative; width: 90vmin; height: 90vmin; 
             max-width: 600px; max-height: 600px; 
-            background: #555; border: 4px solid #000; overflow: hidden; margin: 10px 0;
-            flex-shrink: 0;
+            background: #555; border: 4px solid #000; overflow: hidden; margin: 5px 0;
         }
         .cell { position: absolute; width: 6.66%; height: 6.66%; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; }
         .wall { background: #333; border: 1px solid #222; box-shadow: inset 0 0 5px #000; }
         .brick { background: #e17055; border: 2px solid #d63031; transition: 0.2s; }
-        .door { background: #000; border: 1px dashed #fff; } 
-        .key { font-size: 1.5rem; }
+        .door { background: #000; border: 2px dashed #fff; } 
+        .key { font-size: 1.5rem; animation: float 1s infinite alternate; }
+        @keyframes float { from{transform:translateY(0)} to{transform:translateY(-5px)} }
 
-        /* 角色 (改用 Emoji，不依賴圖片) */
+        /* 角色 (使用 Emoji) */
         #player { 
             position: absolute; width: 6.66%; height: 6.66%; z-index: 20; 
             display: flex; justify-content: center; align-items: center;
-            font-size: 2rem; /* 大一點 */
-            transition: top 0.1s linear, left 0.1s linear; 
+            font-size: 2rem; transition: top 0.1s linear, left 0.1s linear; 
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
-        
         .enemy { position: absolute; width: 6.66%; height: 6.66%; z-index: 15; font-size: 1.5rem; text-align: center; transition: top 0.3s linear, left 0.3s linear; }
         .bomb { position: absolute; width: 5%; height: 5%; margin: 0.8%; z-index: 10; background: #2d3436; border-radius: 50%; border: 2px solid #fff; animation: tick 0.5s infinite alternate; }
         .fire { position: absolute; width: 6.66%; height: 6.66%; z-index: 12; background: rgba(255, 200, 0, 0.8); }
@@ -62,7 +63,7 @@
         #controls { 
             width: 100%; max-width: 500px; height: 160px; 
             display: flex; justify-content: space-between; align-items: center; 
-            padding: 0 30px; flex-shrink: 0; z-index: 50;
+            padding: 0 30px; flex-shrink: 0;
         }
         .dpad { position: relative; width: 140px; height: 140px; }
         .dbtn { 
@@ -84,16 +85,30 @@
 
         /* 答題卡 */
         #quiz-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; display: none; justify-content: center; align-items: center; }
-        .card { background: white; color: #333; width: 90%; max-width: 450px; padding: 20px; border-radius: 15px; max-height: 90vh; overflow-y: auto; text-align: center; }
+        .card { background: white; color: #333; width: 90%; max-width: 450px; padding: 20px; border-radius: 15px; max-height: 90vh; overflow-y: auto; text-align: center; position: relative; }
         .word { font-size: 2.2rem; color: #d63031; font-weight: 800; margin: 0; }
         .meta { color: #666; margin: 5px 0 15px 0; display: flex; justify-content: center; align-items: center; gap: 10px; }
-        .btn-audio { border: 1px solid #ccc; background: #eee; border-radius: 15px; padding: 2px 10px; font-size: 0.8rem; cursor: pointer; }
-        .sent-box { background: #f1f2f6; padding: 12px; border-radius: 8px; text-align: left; margin-bottom: 15px; border-left: 4px solid #0984e3; }
-        .sent-en { font-weight: bold; margin-bottom: 5px; font-size: 1rem; }
-        .sent-cn { color: #636e72; font-size: 0.9rem; display: none; }
-        .opt-btn { width: 100%; padding: 14px; margin: 6px 0; border: 1px solid #ccc; background: #fff; border-radius: 8px; font-size: 1rem; text-align: left; font-weight: bold; cursor: pointer; }
+        .btn-audio { border: 1px solid #ccc; background: #eee; border-radius: 15px; padding: 4px 12px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 5px;}
+        
+        /* 學習區樣式 */
+        .sent-box { background: #f1f2f6; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 15px; border-left: 5px solid #0984e3; display: none; }
+        .sent-row { margin-bottom: 8px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
+        .sent-row:last-child { border-bottom: none; }
+        .en-text { font-weight: bold; font-size: 1.05rem; color: #2d3436; }
+        .cn-text { color: #636e72; font-size: 0.9rem; margin-top: 2px; }
+        
+        .opt-btn { width: 100%; padding: 15px; margin: 6px 0; border: 1px solid #ccc; background: #fff; border-radius: 8px; font-size: 1.1rem; text-align: left; font-weight: bold; cursor: pointer; }
         .opt-btn.correct { background: #00b894; color: white; border-color: #00b894; }
         .opt-btn.wrong { background: #d63031; color: white; border-color: #d63031; }
+        
+        /* 手動關閉按鈕 */
+        #close-quiz-btn {
+            display: none; width: 100%; padding: 15px; margin-top: 15px;
+            background: #0984e3; color: white; border: none; border-radius: 8px;
+            font-size: 1.2rem; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 0 #0762a8;
+        }
+        #close-quiz-btn:active { transform: translateY(4px); box-shadow: none; }
     </style>
 </head>
 <body>
@@ -103,8 +118,8 @@
             <span>❤️<span id="ui-hp">3</span></span>
             <span>Lv.<span id="ui-lv">1</span></span>
             <span>🔑<span id="ui-key">0</span></span>
-            <span class="ammo-box">💣<span id="ui-ammo">3</span></span>
-            <button id="reload-btn" onclick="triggerQuiz()">+ 補給</button>
+            <span class="ammo-box">💣<span id="ui-ammo">5</span></span>
+            <button id="reload-btn" onclick="triggerQuiz()">+ 補給(學習)</button>
         </div>
 
         <div id="stage">
@@ -128,45 +143,82 @@
 
     <div id="quiz-layer">
         <div class="card">
-            <div style="font-size:0.8rem; color:#aaa; margin-bottom:5px;">TOEIC CHALLENGE</div>
+            <div style="font-size:0.8rem; color:#aaa; margin-bottom:5px;">TOEIC 記憶特訓</div>
             <h1 class="word" id="q-w">Word</h1>
             <div class="meta">
                 <span id="q-p">/pho/</span> <span id="q-t">n.</span>
                 <button class="btn-audio" onclick="speak('word')">🔊 單字</button>
             </div>
-            <div class="sent-box">
-                <div class="sent-en" id="q-s">Example sentence.</div>
-                <div class="sent-cn" id="q-sc">中文翻譯</div>
-                <button class="btn-audio" style="margin-top:5px;" onclick="speak('sent')">🔊 唸例句</button>
-            </div>
-            <div style="text-align:left; font-size:0.9rem; color:#888;">請選擇正確意思：</div>
+            
             <div id="opt-box"></div>
+
+            <div id="learn-area" class="sent-box">
+                <div style="font-size:0.8rem; color:#888; margin-bottom:5px;">★ 必考搭配詞 (Collocations)</div>
+                <div id="sent-content"></div>
+                <button class="btn-audio" style="width:100%; margin-top:10px; justify-content: center;" onclick="speak('sent')">🔊 播放整組例句幫助記憶</button>
+            </div>
+
+            <button id="close-quiz-btn" onclick="closeQuiz()">✅ 我記住了，繼續遊戲</button>
         </div>
     </div>
 
     <script>
+        // 防誤觸設定
         document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
         document.addEventListener('gesturestart', e => e.preventDefault());
         document.addEventListener('dblclick', e => e.preventDefault());
 
+        // ==========================================
+        // 1. 三句式資料庫 (格式：單字|音標|詞性|中文|英1^中1^英2^中2^英3^中3)
+        // ==========================================
         const RAW_DATA = [
-            "Agenda|/əˈdʒen.də/|n.|議程|The agenda is attached.|議程已附上。",
-            "Budget|/ˈbʌdʒ.ɪt/|n.|預算|Stay within the budget.|保持在預算內。",
-            "Colleague|/ˈkɑː.liːɡ/|n.|同事|He is my colleague.|他是我的同事。",
-            "Deadline|/ˈded.laɪn/|n.|截止期限|The deadline is 5 PM.|截止期限是下午五點。",
-            "Executive|/ɪɡˈzek.jə.tɪv/|n.|高階主管|The executive approved it.|高管批准了。",
-            "Feedback|/ˈfiːd.bæk/|n.|回饋|We value your feedback.|我們重視您的回饋。",
-            "Guarantee|/ˌɡær.ənˈtiː/|v.|保證|Satisfaction guaranteed.|保證滿意。",
-            "Implement|/ˈɪm.plə.ment/|v.|實施|Implement the plan.|實施這項計畫。",
-            "Lucrative|/ˈluː.krə.tɪv/|adj.|賺錢的|A lucrative deal.|一筆賺錢的交易。",
-            "Merger|/ˈmɝː.dʒɚ/|n.|合併|The merger is final.|合併案已定案。"
+            "Agenda|/əˈdʒen.də/|n.|議程|The agenda is set.^議程已設定。^item on the agenda^議程上的項目^copy of the agenda^議程的副本",
+            "Budget|/ˈbʌdʒ.ɪt/|n.|預算|within budget^在預算內^tight budget^預算吃緊^budget cut^預算刪減",
+            "Colleague|/ˈkɑː.liːɡ/|n.|同事|senior colleague^資深同事^trusted colleague^值得信賴的同事^meet a colleague^見一位同事",
+            "Deadline|/ˈded.laɪn/|n.|截止期限|meet the deadline^趕上截止期限^miss the deadline^錯過截止期限^tight deadline^緊迫的期限",
+            "Executive|/ɪɡˈzek.jə.tɪv/|n.|高階主管|chief executive^執行長^senior executive^資深主管^executive decision^決策",
+            "Feedback|/ˈfiːd.bæk/|n.|回饋|give feedback^給予回饋^positive feedback^正面的回饋^customer feedback^客戶回饋",
+            "Guarantee|/ˌɡær.ənˈtiː/|v.|保證|satisfaction guaranteed^保證滿意^money-back guarantee^退款保證^under guarantee^在保固期內",
+            "Implement|/ˈɪm.plə.ment/|v.|實施|implement a plan^實施計畫^implement changes^實施變更^fully implemented^完全實施",
+            "Lucrative|/ˈluː.krə.tɪv/|adj.|賺錢的|lucrative business^賺錢的生意^lucrative contract^利潤豐厚的合約^highly lucrative^非常賺錢",
+            "Merger|/ˈmɝː.dʒɚ/|n.|合併|merger and acquisition^合併與收購^proposed merger^提議的合併^merger talks^合併談判",
+            "Negotiate|/nəˈɡoʊ.ʃi.eɪt/|v.|談判|negotiate a price^談判價格^negotiate a contract^談判合約^negotiate terms^談判條款",
+            "Recruit|/rɪˈkruːt/|v.|招募|recruit new staff^招募新員工^recruit talent^招募人才^actively recruit^積極招募",
+            "Resume|/rɪˈzuːm/|n.|履歷表|submit a resume^提交履歷^send a resume^寄送履歷^resume and cover letter^履歷與求職信",
+            "Penalty|/ˈpen.əl.ti/|n.|罰款|pay a penalty^支付罰款^face a penalty^面臨罰款^death penalty^死刑",
+            "Itinerary|/laɪˈə.bəl/|n.|行程表|travel itinerary^旅遊行程^detailed itinerary^詳細行程^plan an itinerary^規劃行程",
+            "Asset|/ˈæs.et/|n.|資產|valuable asset^寶貴資產^company asset^公司資產^liquid asset^流動資產",
+            "Deficit|/ˈdef.ə.sɪt/|n.|赤字|budget deficit^預算赤字^trade deficit^貿易赤字^reduce the deficit^減少赤字",
+            "Portfolio|/ˌpɔːrtˈfoʊ.li.oʊ/|n.|作品集/投資組合|investment portfolio^投資組合^design portfolio^設計作品集^diverse portfolio^多樣化的組合",
+            "Refund|/ˈriː.fʌnd/|n.|退款|full refund^全額退款^demand a refund^要求退款^non-refundable^不可退款的",
+            "Valid|/ˈvæl.ɪd/|adj.|有效的|valid passport^有效護照^valid reason^正當理由^remain valid^保持有效",
+            "Acquire|/əˈkwaɪɚ/|v.|收購/獲得|acquire a company^收購公司^acquire skills^獲得技能^acquire knowledge^獲取知識",
+            "Bankruptcy|/ˈbæŋ.krʌpt.si/|n.|破產|file for bankruptcy^申請破產^face bankruptcy^面臨破產^declare bankruptcy^宣告破產",
+            "Capacity|/kəˈpæs.ə.t̬i/|n.|容量/能力|full capacity^產能滿載^seating capacity^座位容量^storage capacity^儲存容量",
+            "Collaborate|/kəˈlæb.ə.reɪt/|v.|合作|collaborate with^與...合作^collaborate on^在...上合作^close collaboration^密切合作",
+            "Designate|/ˈdez.ɪɡ.neɪt/|v.|指定|designated area^指定區域^designated driver^指定駕駛^designated smoking area^指定吸菸區",
+            "Fluctuate|/ˈflʌk.tʃu.eɪt/|v.|波動|prices fluctuate^價格波動^fluctuate wildly^劇烈波動^market fluctuations^市場波動",
+            "Mandatory|/ˈmæn.də.tɔː.ri/|adj.|強制的|mandatory training^強制訓練^mandatory retirement^強制退休^it is mandatory^這是強制的",
+            "Launch|/lɑːntʃ/|v.|發布/上市|launch a product^發布產品^launch a campaign^發起活動^official launch^正式發布",
+            "Nominate|/ˈnɑː.mə.neɪt/|v.|提名|nominate a candidate^提名候選人^nominate for an award^提名獎項^be nominated^被提名",
+            "Renovate|/ˈren.ə.veɪt/|v.|整修|renovate the office^整修辦公室^newly renovated^新裝修的^closed for renovation^關閉整修中"
         ];
 
-        const DB = RAW_DATA.map(l => { const p = l.split('|'); return { w:p[0], pho:p[1], t:p[2], m:p[3], s:p[4], sc:p[5] }});
-        
+        // 資料解析
+        const DB = RAW_DATA.map(line => {
+            const p = line.split('|');
+            const sents = p[4].split('^');
+            let formattedSents = [];
+            for(let i=0; i<sents.length; i+=2) {
+                if(sents[i+1]) formattedSents.push({ en: sents[i], cn: sents[i+1] });
+            }
+            return { w: p[0], pho: p[1], t: p[2], m: p[3], sentences: formattedSents };
+        });
+
+        // 遊戲核心
         const GRID = 15, TILE = 6.666;
-        const STATE = { lv:1, hp:3, key:0, pause:false, bombs:1, range:2, ammo:3 };
-        let map=[], enemies=[], bombs=[], player={gx:1,gy:1}, curBomb=null, curQ=null;
+        const STATE = { lv:1, hp:3, key:0, pause:false, bombs:1, range:2, ammo:5 }; 
+        let map=[], enemies=[], bombs=[], player={gx:1,gy:1,el:null}, curQ=null;
         const input = {u:false,d:false,l:false,r:false};
 
         const dom = {
@@ -177,7 +229,10 @@
             player: document.getElementById('player'),
             quiz: document.getElementById('quiz-layer'),
             hud: { hp: document.getElementById('ui-hp'), lv: document.getElementById('ui-lv'), key: document.getElementById('ui-key'), ammo: document.getElementById('ui-ammo') },
-            q: { w: document.getElementById('q-w'), p: document.getElementById('q-p'), t: document.getElementById('q-t'), s: document.getElementById('q-s'), sc: document.getElementById('q-sc'), box: document.getElementById('opt-box') }
+            q: { w: document.getElementById('q-w'), p: document.getElementById('q-p'), t: document.getElementById('q-t'), box: document.getElementById('opt-box') },
+            learn: document.getElementById('learn-area'),
+            learnContent: document.getElementById('sent-content'),
+            closeBtn: document.getElementById('close-quiz-btn')
         };
 
         function init() {
@@ -237,7 +292,7 @@
                 let cell=map[ny][nx];
                 let bomb=bombs.find(b=>b.x===nx && b.y===ny && !b.pass);
                 if((cell<=0||cell===3||cell===4) && !bomb) {
-                    player.gx=nx; player.gy=ny; updatePlayer(); checkItem(); cd=6; // 移動速度調整
+                    player.gx=nx; player.gy=ny; updatePlayer(); checkItem(); cd=4; // 速度
                     bombs.forEach(b=>{if(b.x!==player.gx||b.y!==player.gy) b.pass=false;});
                 }
             }
@@ -320,10 +375,14 @@
 
         function triggerQuiz() {
             STATE.pause=true; dom.quiz.style.display='flex';
+            dom.learn.style.display='none'; dom.closeBtn.style.display='none'; dom.q.box.style.display='grid';
+            
             const q = DB[Math.floor(Math.random()*DB.length)]; curQ=q;
-            dom.q.w.innerText=q.w; dom.q.p.innerText=q.pho; dom.q.t.innerText=q.t; dom.q.s.innerText=q.s; dom.q.sc.style.display='none';
+            dom.q.w.innerText=q.w; dom.q.p.innerText=q.pho; dom.q.t.innerText=q.t;
+            
             let opts=[q.m]; while(opts.length<4) { let r=DB[Math.floor(Math.random()*DB.length)].m; if(!opts.includes(r)) opts.push(r); }
             opts.sort(()=>Math.random()-0.5);
+            
             dom.q.box.innerHTML='';
             opts.forEach(o=>{
                 const b=document.createElement('div'); b.className='opt-btn'; b.innerText=o;
@@ -334,17 +393,39 @@
 
         function check(ans, btn) {
             if(ans===curQ.m) {
-                btn.classList.add('correct'); STATE.ammo+=3; updateHUD(); 
-                dom.q.sc.innerText=curQ.sc; dom.q.sc.style.display='block';
+                btn.classList.add('correct');
+                
+                // ★ 這裡移除了 setTimeout，改為顯示手動關閉按鈕 ★
+                dom.q.box.style.display='none';
+                dom.learn.style.display='block';
+                dom.closeBtn.style.display='block';
+                
+                let html = '';
+                curQ.sentences.forEach(s => {
+                    html += `<div class="sent-row"><div class="en-text">${s.en}</div><div class="cn-text">${s.cn}</div></div>`;
+                });
+                dom.learnContent.innerHTML = html;
+                
                 speak('sent');
-                setTimeout(()=>{ dom.quiz.style.display='none'; STATE.pause=false; },2000);
             } else {
                 btn.classList.add('wrong'); speakText("Try again");
             }
         }
 
+        function closeQuiz() {
+            STATE.ammo += 5; updateHUD(); // 答對獎勵
+            dom.quiz.style.display='none'; STATE.pause=false;
+        }
+
         function updateHUD() { dom.hud.hp.innerText=STATE.hp; dom.hud.lv.innerText=STATE.lv; dom.hud.key.innerText=STATE.key; dom.hud.ammo.innerText=STATE.ammo; }
-        function speak(type) { window.speechSynthesis.cancel(); let txt=(type==='word')?curQ.w:curQ.s; const u=new SpeechSynthesisUtterance(txt); u.lang='en-US'; window.speechSynthesis.speak(u); }
+        
+        function speak(type) {
+            window.speechSynthesis.cancel();
+            let txt = "";
+            if(type==='word') txt = curQ.w;
+            else if(type==='sent') curQ.sentences.forEach(s => txt += s.en + ". ");
+            const u=new SpeechSynthesisUtterance(txt); u.lang='en-US'; window.speechSynthesis.speak(u);
+        }
         function speakText(t) { const u=new SpeechSynthesisUtterance(t); u.lang='en-US'; window.speechSynthesis.speak(u); }
 
         window.onkeydown=e=>{if(e.key.includes('Arrow')) input[e.key[5].toLowerCase()]=true; if(e.key==' ') placeBomb();}
