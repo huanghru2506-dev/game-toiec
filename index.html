@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>肥橘貓爆破王 v6.0 (最終完美版)</title>
+    <title>肥橘貓爆破王 v7.0 (真正多例句版)</title>
     <style>
-        /* --- 核心設定：防誤觸、鎖定畫面 --- */
+        /* 核心設定 */
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
             overflow: hidden; position: fixed; background: #222;
@@ -28,7 +28,7 @@
         }
         .ammo-box { color: #f1c40f; border: 1px solid #f1c40f; padding: 2px 8px; border-radius: 4px; }
         #reload-btn { 
-            background: #0984e3; color: white; border: none; padding: 8px 15px; 
+            background: #0984e3; color: white; border: none; padding: 5px 12px; 
             border-radius: 4px; font-weight: bold; cursor: pointer; 
             animation: pulse-btn 2s infinite; font-size: 0.9rem;
         }
@@ -47,7 +47,7 @@
         .key { font-size: 1.5rem; animation: float 1s infinite alternate; }
         @keyframes float { from{transform:translateY(0)} to{transform:translateY(-5px)} }
 
-        /* 角色 (使用 Emoji) */
+        /* 角色 */
         #player { 
             position: absolute; width: 6.66%; height: 6.66%; z-index: 20; 
             display: flex; justify-content: center; align-items: center;
@@ -83,16 +83,16 @@
         }
         .act-btn:active { transform: translateY(5px); box-shadow: none; }
 
-        /* 答題卡 */
+        /* 答題卡 (全螢幕) */
         #quiz-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; display: none; justify-content: center; align-items: center; }
         .card { background: white; color: #333; width: 90%; max-width: 450px; padding: 20px; border-radius: 15px; max-height: 90vh; overflow-y: auto; text-align: center; position: relative; }
         .word { font-size: 2.2rem; color: #d63031; font-weight: 800; margin: 0; }
         .meta { color: #666; margin: 5px 0 15px 0; display: flex; justify-content: center; align-items: center; gap: 10px; }
         .btn-audio { border: 1px solid #ccc; background: #eee; border-radius: 15px; padding: 4px 12px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 5px;}
         
-        /* 學習區樣式 */
+        /* 學習區樣式 (多例句) */
         .sent-box { background: #f1f2f6; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 15px; border-left: 5px solid #0984e3; display: none; }
-        .sent-row { margin-bottom: 8px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
+        .sent-row { margin-bottom: 10px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
         .sent-row:last-child { border-bottom: none; }
         .en-text { font-weight: bold; font-size: 1.05rem; color: #2d3436; }
         .cn-text { color: #636e72; font-size: 0.9rem; margin-top: 2px; }
@@ -118,7 +118,7 @@
             <span>❤️<span id="ui-hp">3</span></span>
             <span>Lv.<span id="ui-lv">1</span></span>
             <span>🔑<span id="ui-key">0</span></span>
-            <span class="ammo-box">💣<span id="ui-ammo">5</span></span>
+            <span class="ammo-box">💣<span id="ui-ammo">3</span></span>
             <button id="reload-btn" onclick="triggerQuiz()">+ 補給(學習)</button>
         </div>
 
@@ -155,21 +155,21 @@
             <div id="learn-area" class="sent-box">
                 <div style="font-size:0.8rem; color:#888; margin-bottom:5px;">★ 必考搭配詞 (Collocations)</div>
                 <div id="sent-content"></div>
-                <button class="btn-audio" style="width:100%; margin-top:10px; justify-content: center;" onclick="speak('sent')">🔊 播放整組例句幫助記憶</button>
+                <button class="btn-audio" style="width:100%; margin-top:10px; justify-content: center;" onclick="speak('sent')">🔊 播放整組例句</button>
             </div>
 
-            <button id="close-quiz-btn" onclick="closeQuiz()">✅ 我記住了，繼續遊戲</button>
+            <button id="close-quiz-btn" onclick="closeQuiz()">✅ 我記住了</button>
         </div>
     </div>
 
     <script>
-        // 防誤觸設定
+        // 防誤觸
         document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
         document.addEventListener('gesturestart', e => e.preventDefault());
         document.addEventListener('dblclick', e => e.preventDefault());
 
         // ==========================================
-        // 1. 三句式資料庫 (格式：單字|音標|詞性|中文|英1^中1^英2^中2^英3^中3)
+        // 1. 三句式資料庫 (使用 ^ 分隔)
         // ==========================================
         const RAW_DATA = [
             "Agenda|/əˈdʒen.də/|n.|議程|The agenda is set.^議程已設定。^item on the agenda^議程上的項目^copy of the agenda^議程的副本",
@@ -235,15 +235,10 @@
             closeBtn: document.getElementById('close-quiz-btn')
         };
 
-        function init() {
-            startLevel(1);
-            loop();
-        }
+        function init() { startLevel(1); loop(); }
 
         function startLevel(lv) {
-            STATE.lv = lv; STATE.key = 0; STATE.pause = false;
-            STATE.range = 2 + Math.floor(lv/3);
-            
+            STATE.lv=lv; STATE.key=0; STATE.pause=false; STATE.range=2+Math.floor(lv/3);
             dom.grid.innerHTML=''; dom.item.innerHTML=''; dom.obj.innerHTML=''; dom.ent.innerHTML='';
             bombs=[]; enemies=[]; map=[];
 
@@ -251,7 +246,7 @@
                 let row = [];
                 for(let x=0; x<GRID; x++) {
                     const el=document.createElement('div'); el.className='cell';
-                    el.style.left=(x*TILE)+'%'; el.style.top=(y*TILE)+'%'; el.id=`c-${x}-${y}`;
+                    el.style.left=(x*TILE)+'%'; el.style.top=(y*TILE)+'%';
                     if(x===0||x===GRID-1||y===0||y===GRID-1||(x%2===0&&y%2===0)) { row.push(1); el.classList.add('wall'); }
                     else if(x<3&&y<3) { row.push(0); }
                     else { if(Math.random()<0.3) { row.push(2); el.classList.add('brick'); } else row.push(0); }
@@ -292,7 +287,7 @@
                 let cell=map[ny][nx];
                 let bomb=bombs.find(b=>b.x===nx && b.y===ny && !b.pass);
                 if((cell<=0||cell===3||cell===4) && !bomb) {
-                    player.gx=nx; player.gy=ny; updatePlayer(); checkItem(); cd=4; // 速度
+                    player.gx=nx; player.gy=ny; updatePlayer(); checkItem(); cd=6;
                     bombs.forEach(b=>{if(b.x!==player.gx||b.y!==player.gy) b.pass=false;});
                 }
             }
@@ -373,6 +368,7 @@
             else map[y][x]=0;
         }
 
+        // --- 修正後的答題系統 ---
         function triggerQuiz() {
             STATE.pause=true; dom.quiz.style.display='flex';
             dom.learn.style.display='none'; dom.closeBtn.style.display='none'; dom.q.box.style.display='grid';
@@ -394,8 +390,9 @@
         function check(ans, btn) {
             if(ans===curQ.m) {
                 btn.classList.add('correct');
+                STATE.ammo += 5; updateHUD();
                 
-                // ★ 這裡移除了 setTimeout，改為顯示手動關閉按鈕 ★
+                // ★ 顯示學習區 (不自動關閉) ★
                 dom.q.box.style.display='none';
                 dom.learn.style.display='block';
                 dom.closeBtn.style.display='block';
@@ -413,7 +410,6 @@
         }
 
         function closeQuiz() {
-            STATE.ammo += 5; updateHUD(); // 答對獎勵
             dom.quiz.style.display='none'; STATE.pause=false;
         }
 
