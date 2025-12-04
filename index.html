@@ -3,573 +3,1084 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>肥橘貓爆破王 v9.0 (終極修復)</title>
+    <title>TOEIC 視覺極速記憶卡 v14.0</title>
     <style>
-        /* --- 核心：防誤觸與畫面鎖定 --- */
-        html, body {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden; position: fixed; background: #222;
-            touch-action: none; -webkit-user-select: none; user-select: none;
-            font-family: 'Segoe UI', sans-serif; color: white;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        #main-wrapper {
+        /* --- 基礎設定 --- */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        body {
+            margin: 0; padding: 0;
+            background-color: #f0f2f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            width: 100%; height: 100%;
+            height: 100vh; width: 100vw; overflow: hidden;
         }
 
-        /* 頂部資訊 */
-        #hud { 
-            width: 100%; max-width: 600px; padding: 5px 15px; background: #333; 
-            display: flex; justify-content: space-between; align-items: center; 
-            border-bottom: 2px solid #555; font-weight: bold; font-size: 0.9rem;
-            flex-shrink: 0; height: 50px;
+        /* --- 頂部進度條 --- */
+        #header {
+            width: 100%; max-width: 500px; padding: 10px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            color: #636e72; font-weight: bold; font-size: 0.9rem;
+            flex-shrink: 0;
         }
-        .ammo-box { color: #f1c40f; border: 1px solid #f1c40f; padding: 2px 8px; border-radius: 4px; }
+        #progress-bar {
+            flex-grow: 1; height: 8px; background: #dfe6e9; border-radius: 4px; margin: 0 15px; overflow: hidden;
+        }
+        #progress-fill { height: 100%; width: 0%; background: #00b894; transition: width 0.3s; }
 
-        /* 遊戲舞台 */
-        #stage { 
-            position: relative; width: 90vmin; height: 90vmin; 
-            max-width: 600px; max-height: 600px; 
-            background: #555; border: 4px solid #000; overflow: hidden; margin: 10px 0;
+        /* --- 卡片容器 --- */
+        #card-area {
+            position: relative; width: 90%; max-width: 420px; 
+            height: 65vh; /* 卡片高度 */
+            perspective: 1000px; 
+            margin: 10px 0;
         }
-        .cell { position: absolute; width: 6.66%; height: 6.66%; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; }
-        .wall { background: #333; border: 1px solid #222; box-shadow: inset 0 0 5px #000; }
-        .brick { background: #e17055; border: 2px solid #d63031; transition: 0.2s; }
-        .door { background: #000; border: 2px dashed #fff; } 
-        .key { font-size: 1.5rem; animation: float 1s infinite alternate; }
-        @keyframes float { from{transform:translateY(0)} to{transform:translateY(-5px)} }
-
-        /* 角色與物件 (Emoji) */
-        #player { 
-            position: absolute; width: 6.66%; height: 6.66%; z-index: 20; 
-            display: flex; justify-content: center; align-items: center;
-            font-size: 2rem; transition: top 0.1s linear, left 0.1s linear; 
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-        .enemy { position: absolute; width: 6.66%; height: 6.66%; z-index: 15; font-size: 1.5rem; text-align: center; transition: top 0.3s linear, left 0.3s linear; }
-        .bomb { position: absolute; width: 5%; height: 5%; margin: 0.8%; z-index: 10; background: #2d3436; border-radius: 50%; border: 2px solid #fff; animation: tick 0.5s infinite alternate; }
-        .fire { position: absolute; width: 6.66%; height: 6.66%; z-index: 12; background: rgba(255, 200, 0, 0.8); }
-        @keyframes tick { from{transform:scale(0.9)} to{transform:scale(1.1)} }
-
-        /* 控制器 */
-        #controls { 
-            width: 100%; max-width: 500px; height: 160px; 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 0 20px; flex-shrink: 0;
-        }
-        .dpad { position: relative; width: 140px; height: 140px; }
-        .dbtn { 
-            position: absolute; width: 50px; height: 50px; 
-            background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.4); 
-            border-radius: 8px; 
-        }
-        .dbtn:active { background: rgba(255,255,255,0.5); }
-        .du { top:0; left:45px; } .dd { bottom:0; left:45px; } 
-        .dl { top:45px; left:0; } .dr { top:45px; right:0; }
-
-        .act-btn { 
-            width: 100px; height: 100px; border-radius: 50%; 
-            background: #d63031; border: 4px solid #fab1a0; 
-            display: flex; justify-content: center; align-items: center; 
-            font-size: 3rem; box-shadow: 0 5px 0 #8c1c1c; 
-        }
-        .act-btn:active { transform: translateY(5px); box-shadow: none; }
-
-        /* 學習卡 */
-        #quiz-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; display: none; justify-content: center; align-items: center; }
-        .card { background: white; color: #333; width: 90%; max-width: 450px; padding: 20px; border-radius: 15px; max-height: 90vh; overflow-y: auto; text-align: center; position: relative; }
-        .word { font-size: 2.2rem; color: #d63031; font-weight: 800; margin: 0; }
-        .meta { color: #666; margin: 5px 0 15px 0; display: flex; justify-content: center; align-items: center; gap: 10px; }
-        .btn-audio { border: 1px solid #ccc; background: #eee; border-radius: 15px; padding: 4px 12px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 5px;}
         
-        .sent-box { background: #f1f2f6; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 15px; border-left: 5px solid #0984e3; display: none; }
-        .sent-row { margin-bottom: 10px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
-        .en-text { font-weight: bold; font-size: 1.05rem; color: #2d3436; }
-        .cn-text { color: #636e72; font-size: 0.9rem; margin-top: 2px; }
-        
-        .opt-btn { width: 100%; padding: 15px; margin: 6px 0; border: 1px solid #ccc; background: #fff; border-radius: 8px; font-size: 1.1rem; text-align: left; font-weight: bold; cursor: pointer; }
-        .opt-btn.correct { background: #00b894; color: white; border-color: #00b894; }
-        .opt-btn.wrong { background: #d63031; color: white; border-color: #d63031; }
-        
-        #close-quiz-btn {
-            display: none; width: 100%; padding: 15px; margin-top: 15px;
-            background: #0984e3; color: white; border: none; border-radius: 8px;
-            font-size: 1.2rem; font-weight: bold; cursor: pointer;
-            box-shadow: 0 4px 0 #0762a8;
+        #card {
+            position: relative; width: 100%; height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            cursor: pointer;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            border-radius: 20px;
         }
+
+        /* 翻轉狀態 */
+        #card.flipped { transform: rotateY(180deg); }
+
+        /* 正面與背面通用 */
+        .card-face {
+            position: absolute; width: 100%; height: 100%;
+            -webkit-backface-visibility: hidden; backface-visibility: hidden;
+            border-radius: 20px;
+            background: white;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        /* --- 正面設計 --- */
+        .card-front {
+            z-index: 2; transform: rotateY(0deg);
+            justify-content: center;
+            background: linear-gradient(135deg, #ffffff 0%, #f1f2f6 100%);
+        }
+
+        /* --- 背面設計 --- */
+        .card-back {
+            transform: rotateY(180deg);
+            background: #fffbe6;
+            justify-content: flex-start; /* 內容靠上 */
+            padding-top: 20px;
+        }
+
+        /* --- 內容元件 --- */
+        .visual-icon { font-size: 6rem; margin-bottom: 15px; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.1)); }
+        .word-en { font-size: 2.5rem; font-weight: 800; color: #2d3436; margin: 5px 0; line-height: 1.1; }
+        .word-pho { font-size: 1.1rem; color: #636e72; font-family: 'Times New Roman', serif; background: #dfe6e9; padding: 2px 10px; border-radius: 10px; margin-bottom: 10px; }
+        
+        .click-hint { margin-top: 30px; font-size: 0.85rem; color: #b2bec3; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%{opacity:0.5} 50%{opacity:1} 100%{opacity:0.5} }
+
+        /* 背面詳細 */
+        .header-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        .word-type { font-size: 0.9rem; color: white; background: #0984e3; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .word-cn { font-size: 1.8rem; font-weight: 900; color: #e17055; margin-bottom: 10px; }
+
+        /* 可滾動的例句區 */
+        .scroll-content {
+            flex: 1; width: 100%; overflow-y: auto; text-align: left;
+            padding: 5px; margin-bottom: 10px;
+            border-top: 1px dashed #ddd; border-bottom: 1px dashed #ddd;
+        }
+
+        .col-box { 
+            background: white; padding: 12px; border-radius: 8px; 
+            border-left: 4px solid #00b894; margin-bottom: 10px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+        }
+        .col-en { font-weight: bold; color: #2d3436; font-size: 1.05rem; }
+        .col-cn { color: #636e72; font-size: 0.9rem; margin-top: 4px; }
+
+        /* 按鈕樣式 */
+        .btn-speak { 
+            background: white; border: 1px solid #ccc; border-radius: 50%; 
+            width: 40px; height: 40px; font-size: 1.2rem; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 0 #ddd;
+        }
+        .btn-speak:active { transform: translateY(2px); box-shadow: none; }
+
+        .btn-speak-all {
+            width: 100%; padding: 12px; border: none; border-radius: 10px;
+            background: #74b9ff; color: white; font-size: 1rem; font-weight: bold;
+            box-shadow: 0 4px 0 #0984e3; cursor: pointer; flex-shrink: 0;
+        }
+        .btn-speak-all:active { transform: translateY(4px); box-shadow: none; }
+
+        /* --- 底部操作區 --- */
+        #controls {
+            width: 90%; max-width: 420px; height: 80px; margin-top: 15px;
+            display: flex; gap: 15px; opacity: 0.3; pointer-events: none; transition: opacity 0.2s;
+        }
+        .flipped-mode #controls { opacity: 1; pointer-events: auto; }
+
+        .btn-ctrl {
+            flex: 1; border: none; border-radius: 15px;
+            font-size: 1.1rem; font-weight: bold; cursor: pointer; color: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2); transition: transform 0.1s;
+        }
+        .btn-ctrl:active { transform: translateY(4px); box-shadow: none; }
+        .btn-fail { background: #ff7675; }
+        .btn-pass { background: #00b894; }
+        .btn-sub { font-size: 0.75rem; opacity: 0.9; font-weight: normal; }
+
+        /* 錯誤提示 */
+        #error-log { position: fixed; top: 0; left: 0; width: 100%; background: #d63031; color: white; text-align: center; padding: 10px; display: none; z-index: 9999; }
     </style>
 </head>
 <body>
 
-    <div id="main-wrapper">
-        <div id="hud">
-            <span>❤️ <span id="ui-hp">3</span></span>
-            <span>Lv.<span id="ui-lv">1</span></span>
-            <span>🔑 <span id="ui-key">0</span></span>
-            <span class="ammo-box">📝 學習積分: <span id="ui-score">0</span></span>
-        </div>
+    <div id="error-log"></div>
 
-        <div id="stage">
-            <div id="layer-grid"></div>
-            <div id="layer-item"></div>
-            <div id="layer-obj"></div>
-            <div id="layer-ent"></div>
-            <div id="player">🐱</div>
-        </div>
+    <div id="header">
+        <span id="txt-left">待學: 0</span>
+        <div id="progress-bar"><div id="progress-fill"></div></div>
+        <span id="txt-done">熟記: 0</span>
+    </div>
 
-        <div id="controls">
-            <div class="dpad">
-                <div class="dbtn du" ontouchstart="input.u=true; event.preventDefault()" ontouchend="input.u=false"></div>
-                <div class="dbtn dd" ontouchstart="input.d=true; event.preventDefault()" ontouchend="input.d=false"></div>
-                <div class="dbtn dl" ontouchstart="input.l=true; event.preventDefault()" ontouchend="input.l=false"></div>
-                <div class="dbtn dr" ontouchstart="input.r=true; event.preventDefault()" ontouchend="input.r=false"></div>
+    <div id="card-area" onclick="flipCard()">
+        <div id="card">
+            <div class="card-face card-front">
+                <div class="visual-icon" id="f-icon">🤔</div>
+                <div class="word-en" id="f-word">Loading...</div>
+                <div class="word-pho" id="f-pho"></div>
+                <div class="click-hint">👆 點擊翻面</div>
             </div>
-            <div class="act-btn" ontouchstart="tryPlaceBomb(); event.preventDefault()">💣</div>
+
+            <div class="card-face card-back">
+                <div class="header-row">
+                    <div class="word-en" id="b-word" style="margin:0;">Word</div>
+                    <button class="btn-speak" onclick="event.stopPropagation(); speak('word')">🔊</button>
+                </div>
+                <div class="header-row" style="margin-bottom:10px;">
+                    <div class="word-type" id="b-type">n.</div>
+                    <div class="word-pho" id="b-pho" style="margin:0; font-size:0.9rem;"></div>
+                </div>
+                <div class="word-cn" id="b-mean">中文意思</div>
+
+                <div class="scroll-content">
+                    <div style="font-size:0.8rem; color:#aaa; margin-bottom:8px;">🔥 必考搭配詞</div>
+                    <div id="sent-list"></div>
+                </div>
+
+                <button class="btn-speak-all" onclick="event.stopPropagation(); speak('sent')">🔊 播放全部例句</button>
+            </div>
         </div>
     </div>
 
-    <div id="quiz-layer">
-        <div class="card">
-            <div style="font-size:0.8rem; color:#aaa; margin-bottom:5px;">多益炸彈客</div>
-            <h1 class="word" id="q-w">Loading...</h1>
-            <div class="meta">
-                <span id="q-p"></span> <span id="q-t"></span>
-                <button class="btn-audio" onclick="speak('word')">🔊 單字</button>
-            </div>
-            <div id="opt-box"></div>
-            <div id="learn-area" class="sent-box">
-                <div id="sent-content"></div>
-                <button class="btn-audio" style="width:100%; margin-top:10px; justify-content: center;" onclick="speak('sent')">🔊 播放例句</button>
-            </div>
-            <button id="close-quiz-btn" onclick="confirmLearn()">✅ 我學會了，引爆！</button>
-        </div>
+    <div id="controls">
+        <button class="btn-ctrl btn-fail" onclick="handleResult(false)">
+            <span>😵 沒印象</span>
+            <span class="btn-sub">放入循環</span>
+        </button>
+        <button class="btn-ctrl btn-pass" onclick="handleResult(true)">
+            <span>😎 秒殺</span>
+            <span class="btn-sub">移出清單</span>
+        </button>
     </div>
 
     <script>
-        // 全局錯誤捕捉 (如果手機有問題，會彈窗告訴你)
-        window.onerror = function(msg, url, line) {
-            alert("遊戲發生錯誤: " + msg + "\n行數: " + line);
-            return true;
-        };
-
-        // 防誤觸
-        document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
-        document.addEventListener('gesturestart', e => e.preventDefault());
-        document.addEventListener('dblclick', e => e.preventDefault());
-
-        // ==========================================
-        // 1. 資料庫 (已修復格式錯誤)
-        // 格式：單字|音標|詞性|中文|英1^中1^英2^中2^英3^中3
-        // ==========================================
+        // --- 1. 資料庫 (內建50組高頻單字，請在此擴充) ---
         const RAW_DATA = [
-    // --- 商業基礎 (General Business) ---
-    "Agenda|/əˈdʒen.də/|n.|議程|set the agenda^設定議程^item on agenda^議程項目^agenda is set^議程已定",
-    "Budget|/ˈbʌdʒ.ɪt/|n.|預算|tight budget^預算吃緊^over budget^超出預算^budget cut^刪減預算",
-    "Colleague|/ˈkɑː.liːɡ/|n.|同事|senior colleague^資深同事^meet colleagues^見同事^trusted colleague^信賴的同事",
-    "Deadline|/ˈded.laɪn/|n.|期限|meet deadline^趕上期限^miss deadline^錯過期限^strict deadline^嚴格期限",
-    "Executive|/ɪɡˈzek.jə.tɪv/|n.|主管|chief executive^執行長^senior executive^資深主管^executive decision^決策",
-    "Feedback|/ˈfiːd.bæk/|n.|回饋|give feedback^給予回饋^positive feedback^正面回饋^customer feedback^客戶回饋",
-    "Guarantee|/ˌɡær.ənˈtiː/|v.|保證|satisfaction guaranteed^保證滿意^money back^退款保證^under guarantee^保固內",
-    "Implement|/ˈɪm.plə.ment/|v.|實施|implement plan^實施計畫^implement changes^實施變更^fully implement^完全實施",
-    "Lucrative|/ˈluː.krə.tɪv/|adj.|賺錢的|lucrative deal^賺錢的交易^lucrative market^利潤豐厚的市場^lucrative job^肥缺",
-    "Merger|/ˈmɝː.dʒɚ/|n.|合併|merger talks^合併談判^proposed merger^提議的合併^merger agreement^合併協議",
-    "Negotiate|/nəˈɡoʊ.ʃi.eɪt/|v.|談判|negotiate price^談判價格^negotiate contract^談判合約^negotiate terms^談判條款",
-    "Recruit|/rɪˈkruːt/|v.|招募|recruit staff^招募員工^actively recruit^積極招募^new recruit^新兵",
-    "Resume|/rɪˈzuːm/|n.|履歷|submit resume^提交履歷^send resume^寄履歷^resume sample^履歷範本",
-    "Penalty|/ˈpen.əl.ti/|n.|罰款|pay penalty^付罰款^face penalty^面臨處罰^death penalty^死刑",
-    "Itinerary|/laɪˈə.bəl/|n.|行程|travel itinerary^旅遊行程^plan itinerary^規劃行程^detailed itinerary^詳細行程",
-    "Asset|/ˈæs.et/|n.|資產|valuable asset^寶貴資產^liquid asset^流動資產^company asset^公司資產",
-    "Deficit|/ˈdef.ə.sɪt/|n.|赤字|trade deficit^貿易赤字^budget deficit^預算赤字^reduce deficit^減少赤字",
-    "Portfolio|/ˌpɔːrtˈfoʊ.li.oʊ/|n.|作品集|investment portfolio^投資組合^design portfolio^設計作品集^build portfolio^建立作品集",
-    "Refund|/ˈriː.fʌnd/|n.|退款|full refund^全額退款^demand refund^要求退款^non-refundable^不可退款",
-    "Valid|/ˈvæl.ɪd/|adj.|有效的|valid passport^有效護照^valid reason^正當理由^remain valid^保持有效",
-    "Acquire|/əˈkwaɪɚ/|v.|收購|acquire company^收購公司^acquire skills^獲得技能^acquire knowledge^獲取知識",
-    "Capacity|/kəˈpæs.ə.t̬i/|n.|容量|full capacity^滿載^storage capacity^儲存容量^seating capacity^座位數",
-    "Collaborate|/kəˈlæb.ə.reɪt/|v.|合作|collaborate with^與...合作^close collaboration^密切合作^collaborate on^合作某事",
-    "Fluctuate|/ˈflʌk.tʃu.eɪt/|v.|波動|prices fluctuate^價格波動^market fluctuates^市場波動^fluctuate wildly^劇烈波動",
-    "Mandatory|/ˈmæn.də.tɔː.ri/|adj.|強制的|mandatory training^強制訓練^mandatory retirement^強制退休^it is mandatory^這是強制的",
-    "Launch|/lɑːntʃ/|v.|發布|product launch^產品發布^launch campaign^發起活動^launch date^發布日",
-    "Nominate|/ˈnɑː.mə.neɪt/|v.|提名|nominate candidate^提名候選人^be nominated^被提名^nominate for award^提名獎項",
-    "Renovate|/ˈren.ə.veɪt/|v.|整修|renovate house^整修房子^newly renovated^新裝修的^closed for renovation^整修關閉",
-    "Allocate|/ˈæl.ə.keɪt/|v.|分配|allocate funds^分配資金^allocate resources^分配資源^allocate time^分配時間",
-    "Brochure|/broʊˈʃʊr/|n.|小冊子|read brochure^閱讀小冊子^travel brochure^旅遊手冊^print brochure^印製手冊",
-    "Comply|/kəmˈplaɪ/|v.|遵守|comply with rules^遵守規則^fail to comply^未能遵守^strict compliance^嚴格遵守",
-    "Expansion|/ɪkˈspæn.ʃən/|n.|擴張|business expansion^業務擴張^rapid expansion^快速擴張^overseas expansion^海外擴張",
-    "Fiscal|/ˈfɪs.kəl/|adj.|財政的|fiscal year^會計年度^fiscal policy^財政政策^fiscal crisis^財政危機",
-    "Gross|/ɡroʊs/|adj.|總共的|gross income^總收入^gross profit^毛利^gross weight^總重",
-    "Inspect|/ɪnˈspekt/|v.|檢查|inspect goods^檢查貨物^inspect site^視察現場^closely inspect^仔細檢查",
-    "Kickoff|/ˈkɪk.ɑːf/|n.|開始|kickoff meeting^啟動會議^project kickoff^專案啟動^kickoff time^開賽時間",
-    "Logistics|/ləˈdʒɪs.tɪks/|n.|物流|handle logistics^處理物流^logistics company^物流公司^logistics manager^物流經理",
-    "Monopoly|/məˈnɑː.pəl.i/|n.|壟斷|market monopoly^市場壟斷^have a monopoly^擁有壟斷權^break monopoly^打破壟斷",
-    "Overhead|/ˈoʊ.vɚ.hed/|n.|開支|reduce overhead^減少經常開支^overhead costs^營運成本^low overhead^低營運成本",
-    "Patent|/ˈpæt.ənt/|n.|專利|file patent^申請專利^patent pending^專利申請中^patent lawyer^專利律師",
-    "Quarterly|/ˈkwɔːr.t̬ɚ.li/|adj.|季度的|quarterly report^季度報告^quarterly meeting^季度會議^paid quarterly^按季支付",
-    "Revenue|/ˈrev.ə.nuː/|n.|營收|annual revenue^年度營收^generate revenue^產生營收^tax revenue^稅收",
-    "Strategy|/ˈstræt̬.ə.dʒi/|n.|策略|marketing strategy^行銷策略^business strategy^商業策略^develop strategy^發展策略",
-    "Trademark|/ˈtreɪd.mɑːrk/|n.|商標|register trademark^註冊商標^trademark infringement^商標侵權^company trademark^公司商標",
-    "Unanimous|/juːˈnæn.ə.məs/|adj.|一致的|unanimous vote^全票通過^unanimous decision^一致決定^reached agreement^達成一致",
-    "Vacancy|/ˈveɪ.kən.si/|n.|空缺|job vacancy^職位空缺^no vacancy^客滿^fill vacancy^填補空缺",
-    "Warranty|/ˈwɔːr.ən.ti/|n.|保固|under warranty^在保固內^extended warranty^延長保固^void warranty^保固失效",
-    "Affordable|/əˈfɔːr.də.bəl/|adj.|負擔得起|affordable price^實惠價格^affordable housing^經濟適用房^make it affordable^使其負擔得起",
-    "Boost|/buːst/|v.|促進|boost sales^促進銷售^boost confidence^增強信心^boost morale^提振士氣",
-    "Consumer|/kənˈsuː.mɚ/|n.|消費者|consumer demand^消費者需求^consumer behavior^消費者行為^consumer rights^消費者權益",
-    "Diverse|/dɪˈvɝːs/|adj.|多樣的|diverse culture^多元文化^diverse range^多樣範圍^diverse background^多元背景",
-    "Facility|/fəˈsɪl.ə.t̬i/|n.|設施|sports facility^體育設施^production facility^生產設施^medical facility^醫療設施",
-    "Global|/ˈɡloʊ.bəl/|adj.|全球的|global market^全球市場^global economy^全球經濟^global warming^全球暖化",
-    "Hedge|/hedʒ/|v.|避險|hedge fund^避險基金^hedge against^規避...^hedge risk^對沖風險",
-    "Jeopardize|/ˈdʒep.ɚ.daɪz/|v.|危及|jeopardize job^危及工作^jeopardize safety^危及安全^jeopardize future^危及未來",
-    "Liability|/ˌlaɪ.əˈbɪl.ə.t̬i/|n.|責任|legal liability^法律責任^admit liability^承認責任^limited liability^有限責任",
-    "Outsource|/ˈaʊt.sɔːrs/|v.|外包|outsource work^外包工作^outsource production^外包生產^cost of outsourcing^外包成本",
-    "Productivity|/ˌproʊ.dʌkˈtɪv.ə.t̬i/|n.|生產力|increase productivity^提高生產力^high productivity^高生產力^productivity tool^生產力工具",
-    "Quota|/ˈkwoʊ.t̬ə/|n.|配額|sales quota^銷售配額^meet quota^達到配額^import quota^進口配額",
-    "Recession|/rɪˈseʃ.ən/|n.|衰退|economic recession^經濟衰退^deep recession^嚴重衰退^global recession^全球衰退",
-    "Subsidy|/ˈsʌb.sə.di/|n.|補貼|government subsidy^政府補貼^farming subsidy^農業補貼^apply for subsidy^申請補貼",
-    "Tariff|/ˈter.ɪf/|n.|關稅|impose tariff^徵收關稅^import tariff^進口關稅^high tariff^高關稅",
-    "Venture|/ˈven.tʃɚ/|n.|冒險|joint venture^合資企業^business venture^商業冒險^venture capital^創投資本",
-    "Wholesale|/ˈhoʊl.seɪl/|n.|批發|wholesale price^批發價^wholesale market^批發市場^buy wholesale^批發購買",
-    
-    // --- 辦公室與人資 (HR & Office) ---
-    "Appraisal|/əˈpreɪ.zəl/|n.|評估|performance appraisal^績效評估^staff appraisal^員工評估^get appraisal^獲得評估",
-    "Blueprint|/ˈbluː.prɪnt/|n.|藍圖|design blueprint^設計藍圖^blueprint for success^成功藍圖^project blueprint^專案藍圖",
-    "Commission|/kəˈmɪʃ.ən/|n.|佣金|sales commission^銷售佣金^earn commission^賺取佣金^commission rate^佣金率",
-    "Delegate|/ˈdel.ə.ɡət/|v.|委派|delegate tasks^委派任務^delegate authority^下放權力^learn to delegate^學習委派",
-    "Endorse|/ɪnˈdɔːrs/|v.|背書|endorse product^代言產品^endorse check^背書支票^fully endorse^完全支持",
-    "Feasible|/ˈfiː.zə.bəl/|adj.|可行的|feasible plan^可行的計畫^technically feasible^技術上可行^economically feasible^經濟上可行",
-    "Inventory|/ˈɪn.vən.tɔːr.i/|n.|庫存|check inventory^盤點庫存^inventory control^庫存管理^reduce inventory^減少庫存",
-    "Lease|/liːs/|n.|租約|sign lease^簽署租約^renew lease^續約^lease agreement^租賃協議",
-    "Maintenance|/ˈmeɪn.tən.əns/|n.|維護|regular maintenance^定期維護^maintenance cost^維護成本^high maintenance^難伺候的",
-    "Payroll|/ˈpeɪ.roʊl/|n.|薪資單|payroll department^薪資部門^on the payroll^在職人員^meet payroll^發薪水",
-    "Reimburse|/ˌriː.ɪmˈbɝːs/|v.|核銷|reimburse expenses^核銷費用^reimburse cost^退還成本^get reimbursed^獲得核銷",
-    "Tenant|/ˈten.ənt/|n.|房客|new tenant^新房客^tenant rights^房客權益^evict tenant^驅逐房客",
-    "Vendor|/ˈven.dɚ/|n.|供應商|preferred vendor^首選供應商^vendor list^供應商名單^street vendor^街頭攤販",
-    "Defect|/ˈdiː.fekt/|n.|缺陷|product defect^產品缺陷^birth defect^先天缺陷^zero defect^零缺陷",
-    "Eligible|/ˈel.ə.dʒə.bəl/|adj.|資格|eligible for^有資格^eligible voter^合格選民^become eligible^獲得資格",
-    "Forecast|/ˈfɔːr.kæst/|n.|預測|weather forecast^天氣預報^sales forecast^銷售預測^economic forecast^經濟預測",
-    "Invoice|/ˈɪn.vɔɪs/|n.|發票|issue invoice^開發票^pay invoice^付發票^invoice amount^發票金額",
-    "Landlord|/ˈlænd.lɔːrd/|n.|房東|pay landlord^付房東^landlord approval^房東同意^contact landlord^聯絡房東",
-    "Pension|/ˈpen.ʃən/|n.|退休金|pension fund^退休基金^state pension^國家養老金^pension plan^退休計畫",
-    "Transaction|/trænˈzæk.ʃən/|n.|交易|secure transaction^安全交易^bank transaction^銀行交易^online transaction^線上交易",
-    "Acquisition|/ˌæk.wəˈzɪʃ.ən/|n.|收購|mergers and acquisitions^併購^new acquisition^新收購^make acquisition^進行收購",
-    "Benchmark|/ˈbentʃ.mɑːrk/|n.|基準|set benchmark^設定基準^quality benchmark^品質基準^industry benchmark^行業基準",
-    "Competitor|/kəmˈpet.t̬ə.t̬ɚ/|n.|對手|main competitor^主要對手^beat competitor^擊敗對手^market competitor^市場競爭者",
-    "Dividend|/ˈdɪv.ə.dend/|n.|股利|pay dividend^發放股利^stock dividend^股票股利^annual dividend^年度股利",
-    "Equity|/ˈek.wə.t̬i/|n.|股權|private equity^私募股權^brand equity^品牌資產^shareholder equity^股東權益",
-    "Hypothesis|/haɪˈpɑː.θə.sɪs/|n.|假設|test hypothesis^測試假設^working hypothesis^工作假設^support hypothesis^支持假設",
-    "Liability|/ˌlaɪ.əˈbɪl.ə.t̬i/|n.|責任|legal liability^法律責任^admit liability^承認責任^product liability^產品責任",
-    "Mentoring|/ˈmen.tɔːr.ɪŋ/|n.|指導|mentoring program^導師計畫^provide mentoring^提供指導^peer mentoring^同儕指導",
-    "Network|/ˈnet.wɝːk/|v.|人脈|social network^社交網絡^computer network^電腦網絡^build network^建立人脈",
-    "Quarter|/ˈkwɔːr.t̬ɚ/|n.|季度|first quarter^第一季^fourth quarter^第四季^quarterly results^季度結果",
-    "Subsidiary|/səbˈsɪd.i.er.i/|n.|子公司|foreign subsidiary^外國子公司^wholly owned^全資子公司^parent company^母公司",
-    "Turnover|/ˈtɝːnˌoʊ.vɚ/|n.|流動率|staff turnover^員工流動率^high turnover^高流動率^annual turnover^年營業額",
-    "Voucher|/ˈvaʊ.tʃɚ/|n.|優惠券|gift voucher^禮券^travel voucher^旅遊券^cash voucher^現金券",
-    "Workshop|/ˈwɝːk.ʃɑːp/|n.|研討會|training workshop^培訓研討會^attend workshop^參加研討會^run a workshop^舉辦研討會",
-    
-    // --- 旅遊與生活 (Travel & Life) ---
-    "Apartment|/əˈpɑːrt.mənt/|n.|公寓|rent apartment^租公寓^apartment building^公寓大樓^studio apartment^套房",
-    "Architect|/ˈɑːr.kə.tekt/|n.|建築師|famous architect^著名建築師^chief architect^首席建築師^landscape architect^景觀建築師",
-    "Construction|/kənˈstrʌk.ʃən/|n.|建築|under construction^施工中^construction site^工地^construction worker^建築工人",
-    "Elevator|/ˈel.ə.veɪ.t̬ɚ/|n.|電梯|take elevator^搭電梯^elevator pitch^電梯簡報^freight elevator^貨梯",
-    "Estate|/ɪˈsteɪt/|n.|地產|real estate^房地產^industrial estate^工業區^housing estate^住宅區",
-    "Furniture|/ˈfɝː.nɪ.tʃɚ/|n.|家具|office furniture^辦公家具^antique furniture^古董家具^move furniture^搬家具",
-    "Property|/ˈprɑː.pɚ.t̬i/|n.|財產|private property^私人財產^intellectual property^智慧財產^property tax^財產稅",
-    "Resident|/ˈrez.ə.dənt/|n.|居民|local resident^當地居民^permanent resident^永久居民^resident permit^居留證",
-    "Structure|/ˈstrʌk.tʃɚ/|n.|結構|organization structure^組織結構^steel structure^鋼結構^price structure^價格結構",
-    "Accountant|/əˈkaʊn.t̬ənt/|n.|會計|chartered accountant^特許會計師^hire accountant^聘請會計^chief accountant^會計主任",
-    "Chef|/ʃef/|n.|主廚|head chef^行政主廚^sous chef^副主廚^pastry chef^甜點師",
-    "Mechanic|/məˈkæn.ɪk/|n.|技工|car mechanic^汽車技工^auto mechanic^汽車維修工^call mechanic^叫技工",
-    "Plumber|/ˈplʌm.ɚ/|n.|水電工|call plumber^叫水電工^master plumber^資深水電工^plumber tools^水電工具",
-    "Politician|/ˌpɑː.ləˈtɪʃ.ən/|n.|政客|local politician^地方政客^corrupt politician^腐敗政客^career politician^職業政客",
-    "Professor|/prəˈfes.ɚ/|n.|教授|university professor^大學教授^assistant professor^助理教授^retired professor^退休教授",
-    "Receptionist|/rɪˈsep.ʃən.ɪst/|n.|櫃台|hotel receptionist^飯店櫃台^medical receptionist^診所櫃台^ask receptionist^問櫃台",
-    "Scientist|/ˈsaɪən.tɪst/|n.|科學家|research scientist^研究科學家^social scientist^社會科學家^data scientist^數據科學家",
-    "Secretary|/ˈsek.rə.ter.i/|n.|秘書|private secretary^私人秘書^legal secretary^法律秘書^executive secretary^行政秘書",
-    "Airport|/ˈer.pɔːrt/|n.|機場|international airport^國際機場^airport shuttle^機場接駁^airport security^機場安檢",
-    "Baggage|/ˈbæɡ.ɪdʒ/|n.|行李|baggage claim^行李提領^excess baggage^超重行李^check baggage^托運行李",
-    "Cancel|/ˈkæn.səl/|v.|取消|cancel flight^取消班機^cancel reservation^取消預約^cancel meeting^取消會議",
-    "Delay|/dɪˈleɪ/|n.|延誤|flight delay^班機延誤^traffic delay^交通延誤^without delay^毫不延遲",
-    "Depart|/dɪˈpɑːrt/|v.|出發|depart on time^準時出發^depart from^從...出發^flight departs^班機起飛",
-    "Destination|/ˌdes.təˈneɪ.ʃən/|n.|目的地|final destination^最終目的地^tourist destination^旅遊勝地^reach destination^抵達目的地",
-    "Flight|/flaɪt/|n.|班機|book flight^訂機票^connecting flight^轉機^cancel flight^取消班機",
-    "Luggage|/ˈlʌɡ.ɪdʒ/|n.|行李|hand luggage^手提行李^lost luggage^遺失行李^pack luggage^打包行李",
-    "Passport|/ˈpæs.pɔːrt/|n.|護照|valid passport^有效護照^renew passport^換護照^passport control^護照查驗",
-    "Reservation|/ˌrez.ɚˈveɪ.ʃən/|n.|預約|make reservation^預約^confirm reservation^確認預約^cancel reservation^取消預約",
-    "Route|/ruːt/|n.|路線|bus route^公車路線^scenic route^風景路線^plan route^規劃路線",
-    "Shuttle|/ˈʃʌt.l̩/|n.|接駁車|shuttle bus^接駁巴士^space shuttle^太空梭^airport shuttle^機場接駁",
-    "Suitcase|/ˈsuːt.keɪs/|n.|手提箱|pack suitcase^打包手提箱^heavy suitcase^很重的手提箱^carry suitcase^提手提箱",
-    "Ticket|/ˈtɪk.ɪt/|n.|票|one-way ticket^單程票^return ticket^來回票^book ticket^訂票",
-    "Tour|/tʊr/|n.|旅遊|guided tour^導覽^city tour^城市旅遊^world tour^世界巡迴",
-    "Visa|/ˈviː.zə/|n.|簽證|tourist visa^觀光簽證^apply for visa^申請簽證^student visa^學生簽證",
-    "Appliance|/əˈplaɪ.əns/|n.|家電|kitchen appliance^廚房家電^household appliance^家用電器^electrical appliance^電器",
-    "Attire|/əˈtaɪr/|n.|服裝|formal attire^正式服裝^business attire^商務服裝^proper attire^適當服裝",
-    "Beverage|/ˈbev.ɚ.ɪdʒ/|n.|飲料|food and beverage^餐飲^alcoholic beverage^含酒精飲料^hot beverage^熱飲",
-    "Catering|/ˈkeɪ.t̬ɚ.ɪŋ/|n.|外燴|catering service^外燴服務^catering company^外燴公司^provide catering^提供外燴",
-    "Commute|/kəˈmjuːt/|v.|通勤|daily commute^每日通勤^long commute^長途通勤^commute to work^通勤上班",
-    "Currency|/ˈkɝː.ən.si/|n.|貨幣|foreign currency^外幣^local currency^當地貨幣^currency exchange^貨幣兌換",
-    "Deduction|/dɪˈdʌk.ʃən/|n.|扣除|tax deduction^稅收扣除^salary deduction^薪資扣除^standard deduction^標準扣除",
-    "Duration|/djuˈreɪ.ʃən/|n.|期間|short duration^短期間^duration of stay^停留期間^average duration^平均期間",
-    "Fare|/fer/|n.|票價|bus fare^公車票價^train fare^火車票價^air fare^機票價格",
-    "Landmark|/ˈlænd.mɑːrk/|n.|地標|famous landmark^著名地標^historic landmark^歷史地標^city landmark^城市地標",
-    "Scenery|/ˈsiː.nɚ.i/|n.|風景|beautiful scenery^美麗風景^mountain scenery^山景^enjoy scenery^欣賞風景",
-    "Transit|/ˈtræn.zɪt/|n.|運輸|public transit^大眾運輸^in transit^運輸中^mass transit^大眾捷運",
-    "Cubicle|/ˈkjuː.bɪ.kəl/|n.|隔間|office cubicle^辦公隔間^work in cubicle^在隔間工作^cubicle wall^隔間牆",
-    "Document|/ˈdɑː.kjə.ment/|n.|文件|sign document^簽署文件^legal document^法律文件^attach document^附加文件",
-    "Folder|/ˈfoʊl.dɚ/|n.|資料夾|file folder^檔案夾^new folder^新資料夾^organize folder^整理資料夾",
-    "Photocopier|/ˈfoʊ.t̬oʊˌkɑː.pi.ɚ/|n.|影印機|use photocopier^用影印機^jammed photocopier^卡紙的影印機^color photocopier^彩色影印機",
-    "Presentation|/ˌprez.ənˈteɪ.ʃən/|n.|簡報|give presentation^做簡報^slide presentation^投影片簡報^oral presentation^口頭簡報",
-    "Stationery|/ˈsteɪ.ʃə.ner.i/|n.|文具|office stationery^辦公文具^stationery shop^文具店^order stationery^訂購文具",
-    "Applicant|/ˈæp.lə.kənt/|n.|申請人|job applicant^求職者^successful applicant^錄取者^screen applicants^篩選申請人",
-    "Assistant|/əˈsɪs.tənt/|n.|助理|personal assistant^私人助理^executive assistant^行政助理^research assistant^研究助理",
-    "Certificate|/sɚˈtɪf.ə.kət/|n.|證書|birth certificate^出生證明^medical certificate^診斷書^gift certificate^禮券",
-    "Director|/dɪˈrek.tɚ/|n.|總監|marketing director^行銷總監^board of directors^董事會^managing director^總經理",
-    "Occupation|/ˌɑː.kjəˈpeɪ.ʃən/|n.|職業|current occupation^目前職業^state occupation^說明職業^hazardous occupation^危險職業",
-    "Supervisor|/ˈsuː.pɚ.vaɪ.zɚ/|n.|主管|direct supervisor^直屬主管^report to supervisor^向主管報告^shift supervisor^值班主管",
-    "Ambitious|/æmˈbɪʃ.əs/|adj.|有野心|ambitious goal^野心勃勃的目標^ambitious plan^宏大的計畫^ambitious young man^有為青年",
-    "Cautious|/ˈkɑː.ʃəs/|adj.|謹慎的|be cautious^謹慎^cautious approach^謹慎的方法^cautious optimism^審慎樂觀",
-    "Diligent|/ˈdɪl.ə.dʒənt/|adj.|勤勉的|diligent student^勤勉的學生^diligent worker^勤勞的工人^do diligently^勤奮地做",
-    "Punctual|/ˈpʌŋk.tʃu.əl/|adj.|準時的|be punctual^要準時^always punctual^總是準時^punctual arrival^準時到達"
+        "🔑|Access|/ˈæk.ses/|n.|進入權；通道|gain access^獲得權限^internet access^網路連線^access card^門禁卡",
+"🏆|Accomplish|/əˈkɑːm.plɪʃ/|v.|完成；實現|accomplish a goal^達成目標^mission accomplished^任務完成^hard to accomplish^難以達成",
+"🎯|Accurate|/ˈæk.jɚ.ət/|adj.|準確的|accurate information^準確的資訊^accurate record^準確的紀錄^highly accurate^高度準確",
+"✅|Achieve|/əˈtʃiːv/|v.|達成；實現|achieve success^獲得成功^achieve a target^達成目標^achieve objectives^實現目的",
+"➕|Additional|/əˈdɪʃ.ən.əl/|adj.|額外的|additional cost^額外費用^additional information^補充資訊^additional charge^附加費",
+"🔧|Adjust|/əˈdʒʌst/|v.|調整；適應|adjust the price^調整價格^adjust to change^適應變化^adjust the schedule^調整行程",
+"🧐|Admire|/ədˈmaɪr/|v.|欽佩；欣賞|admire his work^欣賞他的工作^admire the view^欣賞風景^deeply admire^深深欽佩",
+"🗣️|Admit|/ədˈmɪt/|v.|承認；准許進入|admit a mistake^承認錯誤^admit defeat^認輸^admit into^准許進入",
+"⏩|Advance|/ədˈvæns/|n.|前進；預付|in advance^事先^advance payment^預付款^career advance^職涯晉升",
+"🕴️|Advisor|/ədˈvaɪ.zɚ/|n.|顧問|financial advisor^財務顧問^legal advisor^法律顧問^senior advisor^資深顧問",
+"📄|Affidavit|/ˌæf.əˈdeɪ.vɪt/|n.|宣誓書|sign an affidavit^簽署宣誓書^sworn affidavit^正式宣誓書^submit an affidavit^提交宣誓書",
+"💵|Afford|/əˈfɔːrd/|v.|負擔得起|can afford^買得起^afford the expense^負擔費用^cannot afford to^承擔不起...",
+"🤝|Agency|/ˈeɪ.dʒən.si/|n.|代理機構|travel agency^旅行社^advertising agency^廣告代理商^employment agency^就業仲介",
+"🎯|Aim|/eɪm/|n.|目標；瞄準|aim at^瞄準^main aim^主要目標^achieve an aim^達成目標",
+"🛫|Airline|/ˈer.laɪn/|n.|航空公司|budget airline^廉價航空^airline ticket^機票^major airline^主要航空公司",
+"🚨|Alarm|/əˈlɑːrm/|n.|警報；驚慌|fire alarm^火災警報^false alarm^虛驚一場^security alarm^防盜警報",
+"🍷|Alcohol|/ˈæl.kə.hɑːl/|n.|酒精|alcohol consumption^酒精攝取^rubbing alcohol^外用酒精^alcohol-free^無酒精的",
+"🚑|Ambulance|/ˈæm.bjə.ləns/|n.|救護車|call an ambulance^叫救護車^ambulance crew^救護人員^rush by ambulance^緊急送醫",
+"📊|Analysis|/əˈnæl.ə.sɪs/|n.|分析|data analysis^數據分析^market analysis^市場分析^cost-benefit analysis^成本效益分析",
+"😠|Angry|/ˈæŋ.ɡri/|adj.|生氣的|angry customer^生氣的顧客^get angry^生氣^angry with^對...生氣",
+"📅|Annual|/ˈæn.ju.əl/|adj.|年度的|annual meeting^年度會議^annual report^年度報告^annual leave^年假",
+"😰|Anxious|/ˈæŋk.ʃəs/|adj.|焦慮的；急切的|anxious about^對...感到焦慮^anxious to know^急切想知道^feel anxious^感到不安",
+"🍎|Appeal|/əˈpiːl/|n.|吸引力；上訴|have appeal^有吸引力^appeal to^吸引...^file an appeal^提出上訴",
+"👖|Apparel|/əˈper.əl/|n.|服裝|wearing apparel^穿著的衣物^apparel industry^服裝業^sports apparel^運動服飾",
+"👏|Applaud|/əˈplɑːd/|v.|鼓掌；讚許|applaud the decision^讚許這個決定^audience applauded^觀眾鼓掌^should be applauded^值得喝采",
+"🍏|Apple|/ˈæp.əl/|n.|蘋果(公司)|Apple Inc.^蘋果公司^big apple^紐約市^apple of my eye^掌上明珠",
+"📝|Applicant|/ˈæp.lə.kənt/|n.|申請人|job applicant^求職者^successful applicant^錄取者^qualified applicant^合格的申請人",
+"🧐|Appreciate|/əˈpriː.ʃi.eɪt/|v.|感激；欣賞；升值|appreciate your help^感謝你的幫忙^appreciate art^欣賞藝術^currency appreciates^貨幣升值",
+"✅|Approve|/əˈpruːv/|v.|批准；贊成|approve the budget^批准預算^approve of^贊成^officially approved^正式批准",
+"📐|Area|/ˈer.i.ə/|n.|區域；面積|restricted area^管制區^residential area^住宅區^surface area^表面積",
+"🗣️|Argue|/ˈɑːr.ɡjuː/|v.|爭論；主張|argue with^與...爭論^argue that^主張...^argue about^爭論關於...",
+"🤔|Argument|/ˈɑːr.ɡjə.mənt/|n.|論點；爭吵|valid argument^有效的論點^heated argument^激烈的爭吵^win an argument^贏得爭論",
+"🚚|Arrive|/əˈraɪv/|v.|到達|arrive on time^準時到達^arrive at the airport^抵達機場^estimated to arrive^預計到達",
+"🎨|Art|/ɑːrt/|n.|藝術|work of art^藝術品^art gallery^藝廊^state of the art^最先進的",
+"📰|Article|/ˈɑːr.t̬ɪ.kəl/|n.|文章；物品|newspaper article^報紙文章^journal article^期刊論文^article of clothing^一件衣物",
+"🤔|Aspect|/ˈæs.pekt/|n.|方面|key aspect^關鍵方面^every aspect^各個方面^negative aspect^負面因素",
+"🏥|Assist|/əˈsɪst/|v.|協助|assist customers^協助顧客^assist with^協助處理^assist in^在...方面協助",
+"💁|Assistant|/əˈsɪs.tənt/|n.|助理|personal assistant^私人助理^assistant manager^副理^administrative assistant^行政助理",
+"🤝|Associate|/əˈsoʊ.ʃi.eɪt/|v.|聯想；結交|associate with^與...往來^sales associate^銷售專員^closely associated^密切相關",
+"🏫|Association|/əˌsoʊ.siˈeɪ.ʃən/|n.|協會；關聯|trade association^貿易協會^alumni association^校友會^in association with^與...合作",
+"🤯|Assume|/əˈsuːm/|v.|假設；承擔|assume responsibility^承擔責任^assume that^假設...^safely assume^可以合理假設",
+"🎈|Atmosphere|/ˈæt.mə.sfɪr/|n.|氣氛；大氣|relaxed atmosphere^輕鬆的氣氛^working atmosphere^工作氣氛^create an atmosphere^營造氣氛",
+"🔗|Attach|/əˈtætʃ/|v.|附加；貼上|attach a file^附加檔案^please find attached^請查閱附件^attach importance to^重視...",
+"🛑|Attempt|/əˈtempt/|n.|嘗試；企圖|make an attempt^嘗試^first attempt^第一次嘗試^failed attempt^失敗的嘗試",
+"👂|Attend|/əˈtend/|v.|參加；出席|attend a meeting^參加會議^attend a conference^參加研討會^unable to attend^無法出席",
+"👨‍👩‍👧|Attention|/əˈten.ʃən/|n.|注意|pay attention^注意^attract attention^吸引注意^attention to detail^注重細節",
+"🏛️|Attitude|/ˈæt̬.ə.tuːd/|n.|態度|positive attitude^積極的態度^bad attitude^態度惡劣^attitude towards^對...的態度",
+"👩‍⚖️|Attorney|/əˈtɝː.ni/|n.|律師|defense attorney^辯護律師^power of attorney^授權書^consult an attorney^諮詢律師",
+"🧲|Attract|/əˈtrækt/|v.|吸引|attract customers^吸引顧客^attract investors^吸引投資者^attract attention^吸引注意",
+"👥|Audience|/ˈɑː.di.əns/|n.|觀眾；聽眾|target audience^目標受眾^captivate the audience^迷住觀眾^large audience^大量觀眾",
+"✍️|Author|/ˈɑː.θɚ/|n.|作者|book author^書籍作者^lead author^主要作者^co-author^共同作者",
+"👮|Authority|/əˈθɔːr.ə.t̬i/|n.|當局；權威|local authority^地方當局^have the authority^有權力^leading authority^權威人士",
+"🤖|Automatic|/ˌɑː.t̬əˈmæt̬.ɪk/|adj.|自動的|automatic door^自動門^automatic reply^自動回覆^fully automatic^全自動",
+"🚗|Automobile|/ˈɑː.t̬ə.moʊ.biːl/|n.|汽車|automobile industry^汽車工業^automobile insurance^車險^automobile parts^汽車零件",
+"🍂|Available|/əˈveɪ.lə.bəl/|adj.|可用的；有空的|available for^可用於...^currently available^目前可用的^make available^使可用",
+"📏|Average|/ˈæv.ər.ɪdʒ/|n.|平均|above average^高於平均^on average^平均來說^average cost^平均成本",
+"🏆|Award|/əˈwɔːrd/|n.|獎項|win an award^得獎^award ceremony^頒獎典禮^receive an award^接受獎項",
+"👀|Aware|/əˈwer/|adj.|意識到的|aware of^意識到...^become aware^發覺^well aware^很清楚",
+"🔙|Background|/ˈbæk.ɡraʊnd/|n.|背景|educational background^學歷背景^background check^背景調查^background noise^背景噪音",
+"🎒|Bag|/bæɡ/|n.|袋子|shopping bag^購物袋^check a bag^托運行李^carry-on bag^隨身行李",
+"⚖️|Balance|/ˈbæl.əns/|n.|平衡；餘額|bank balance^銀行餘額^work-life balance^工作與生活平衡^lose balance^失去平衡",
+"🎈|Balloon|/bəˈluːn/|n.|氣球|hot air balloon^熱氣球^balloon payment^大額尾款^pop a balloon^戳破氣球",
+"🏦|Bank|/bæŋk/|n.|銀行|bank account^銀行帳戶^bank loan^銀行貸款^central bank^中央銀行",
+"🚫|Ban|/bæn/|n.|禁令|lift a ban^解除禁令^total ban^全面禁止^ban on smoking^禁菸令",
+"📊|Bar|/bɑːr/|n.|條；酒吧；律師界|bar chart^長條圖^snack bar^點心吧^pass the bar^通過律師考試",
+"🤝|Bargain|/ˈbɑːr.ɡɪn/|n.|特價品；協議|good bargain^划算的交易^bargain price^特價^bargain hunting^撿便宜",
+"⚾|Base|/beɪs/|n.|基礎；基地|customer base^客戶群^based in^總部設於^data base^資料庫",
+"📉|Basic|/ˈbeɪ.sɪk/|adj.|基本的|basic salary^底薪^basic need^基本需求^basic knowledge^基本常識",
+"🐻|Bear|/ber/|v.|忍受；承擔|bear in mind^記住^bear the cost^承擔費用^bear responsibility^承擔責任",
+"📉|Behavior|/bɪˈheɪ.vjɚ/|n.|行為|consumer behavior^消費者行為^professional behavior^專業行為^unacceptable behavior^不可接受的行為",
+"🔔|Bell|/bel/|n.|鈴|ring the bell^按鈴^alarm bell^警鈴^bell captain^行李領班",
+"🏷️|Belong|/bɪˈlɑːŋ/|v.|屬於|belong to^屬於...^belong here^屬於這裡^feel like belonging^有歸屬感",
+"⬇️|Below|/bɪˈloʊ/|prep.|在...之下|below average^低於平均^see below^見下文^below zero^零下",
+"🗳️|Bench|/bentʃ/|n.|長椅；基準|park bench^公園長椅^bench test^基準測試^benchmark^基準",
+"🍵|Beverage|/ˈbev.ɚ.ɪdʒ/|n.|飲料|food and beverage^餐飲^alcoholic beverage^酒精飲料^beverage industry^飲料業",
+"🚲|Bicycle|/ˈbaɪ.sə.kəl/|n.|腳踏車|ride a bicycle^騎腳踏車^bicycle lane^自行車道^bicycle stand^腳踏車架",
+"📃|Bill|/bɪl/|n.|帳單；法案|utility bill^水電費帳單^pay the bill^付帳^pass a bill^通過法案",
+"🗑️|Bin|/bɪn/|n.|桶子；箱子|recycle bin^回收桶^trash bin^垃圾桶^storage bin^儲物箱",
+"🔗|Bind|/baɪnd/|v.|裝訂；約束|legally binding^具法律約束力的^bind together^結合^spiral binding^線圈裝訂",
+"🎂|Birthday|/ˈbɝːθ.deɪ/|n.|生日|birthday party^生日派對^happy birthday^生日快樂^birthday present^生日禮物",
+"⚫|Black|/blæk/|adj.|黑色的|in the black^有盈餘^black market^黑市^black tie^正式晚禮服",
+"⬜|Blank|/blæŋk/|adj.|空白的|fill in the blanks^填空^blank page^空白頁^go blank^腦袋一片空白",
+"🧱|Block|/blɑːk/|n.|街區；塊；阻礙|city block^城市街區^office block^辦公大樓^road block^路障",
+"🩸|Blood|/blʌd/|n.|血液|blood pressure^血壓^blood test^驗血^blood donor^捐血者",
+"🟦|Blue|/bluː/|n.|藍色；憂鬱|blueprint^藍圖^blue collar^藍領階級^out of the blue^出乎意料",
+"🚢|Board|/bɔːrd/|n.|董事會；板子；登機|board of directors^董事會^notice board^佈告欄^on board^登機/加入",
+"🛶|Boat|/boʊt/|n.|船|miss the boat^錯失良機^fishing boat^漁船^in the same boat^處境相同",
+"💣|Bomb|/bɑːm/|n.|炸彈|time bomb^定時炸彈^bomb threat^炸彈威脅^drop a bomb^投擲炸彈",
+"🦴|Bone|/boʊn/|n.|骨頭|bone density^骨質密度^broken bone^骨折^bare bones^基本要素",
+"📚|Book|/bʊk/|v.|預訂|book a flight^訂機票^fully booked^客滿^book a table^訂位",
+"👢|Boot|/buːt/|n.|靴子；後車廂|hiking boots^登山靴^car boot^汽車後車廂^give someone the boot^解雇某人",
+" बॉर्डर|Border|/ˈbɔːr.dɚ/|n.|邊界|cross the border^越過邊界^border control^邊境管制^national border^國界",
+"🥱|Bored|/bɔːrd/|adj.|無聊的|bored with^對...感到厭煩^look bored^看起來很無聊^get bored^感到無聊",
+"🤝|Borrow|/ˈbɑːr.oʊ/|v.|借入|borrow money^借錢^borrow from^向...借^borrow a book^借書",
+"Boss|Boss|/bɑːs/|n.|老闆|big boss^大老闆^boss around^頤指氣使^their boss^他們的老闆",
+"🧴|Bottle|/ˈbɑː.t̬əl/|n.|瓶子|water bottle^水壺^bottle of wine^一瓶酒^plastic bottle^寶特瓶",
+"🥣|Bowl|/boʊl/|n.|碗|bowl of soup^一碗湯^mixing bowl^攪拌碗^toilet bowl^馬桶座",
+"📦|Box|/bɑːks/|n.|箱子；盒子|cardboard box^紙箱^box office^票房^suggestion box^意見箱",
+"🧠|Brain|/breɪn/|n.|大腦|brainstorm^腦力激盪^brain drain^人才外流^use your brain^動動腦",
+"🌿|Branch|/bræntʃ/|n.|分店；分公司；樹枝|branch office^分公司^open a branch^開設分店^local branch^當地分行",
+"🏷️|Brand|/brænd/|n.|品牌|brand image^品牌形象^brand loyalty^品牌忠誠度^luxury brand^奢侈品牌",
+"🍞|Bread|/bred/|n.|麵包|bread and butter^生計；主要收入來源^slice of bread^一片麵包^fresh bread^新鮮麵包",
+"💔|Break|/breɪk/|v.|打破；休息|lunch break^午休^break the law^違法^tax break^稅收減免",
+"🧱|Brick|/brɪk/|n.|磚塊|brick wall^磚牆^hit a brick wall^碰壁^red brick^紅磚",
+"🌉|Bridge|/brɪdʒ/|n.|橋梁|build a bridge^造橋^bridge the gap^縮小差距^golden gate bridge^金門大橋",
+"💼|Brief|/briːf/|adj.|簡短的|brief meeting^簡短會議^brief description^簡短描述^in brief^簡言之",
+"💡|Bright|/braɪt/|adj.|明亮的；聰明的|bright future^光明的未來^bright idea^聰明的點子^bright color^鮮豔的顏色",
+"📺|Broadcast|/ˈbrɑːd.kæst/|v.|廣播；播出|live broadcast^現場直播^broadcast news^廣播新聞^radio broadcast^電台廣播",
+"🧹|Brush|/brʌʃ/|n.|刷子|paint brush^油漆刷^brush up on^溫習^toothbrush^牙刷",
+"💎|Quality|/ˈkwɑː.lə.t̬i/|n.|品質|high quality^高品質^quality control^品質管制^poor quality^品質差",
+"❓|Question|/ˈkwes.tʃən/|n.|問題|ask a question^問問題^answer a question^回答問題^tough question^難題",
+"📊|Rate|/reɪt/|n.|比率；價格|interest rate^利率^exchange rate^匯率^hourly rate^時薪",
+"🧾|Receipt|/rɪˈsiːt/|n.|收據|keep the receipt^保留收據^original receipt^收據正本^receipt of payment^付款收據",
+"🏨|Reception|/rɪˈsep.ʃən/|n.|接待處；招待會|wedding reception^婚宴^reception desk^接待櫃台^warm reception^熱烈歡迎",
+"📝|Recommendation|/ˌrek.ə.menˈdeɪ.ʃən/|n.|推薦；建議|letter of recommendation^推薦信^make a recommendation^提出建議^on recommendation^經...推薦",
+"⏺️|Record|/ˈrek.ɚd/|n.|紀錄|break a record^打破紀錄^keep a record^保持紀錄^medical record^病歷",
+"💸|Refund|/ˈriː.fʌnd/|n.|退款|full refund^全額退款^request a refund^要求退款^non-refundable^不可退款",
+"⚖️|Regulation|/ˌreɡ.jəˈleɪ.ʃən/|n.|法規；規定|safety regulation^安全規定^follow regulations^遵守法規^new regulation^新法規",
+"🔗|Relation|/rɪˈleɪ.ʃən/|n.|關係|public relations^公共關係^in relation to^關於^international relations^國際關係",
+"📄|Report|/rɪˈpɔːrt/|n.|報告|annual report^年度報告^sales report^銷售報告^write a report^寫報告",
+"👔|Representative|/ˌrep.rɪˈzen.t̬ə.tɪv/|n.|代表|sales representative^業務代表^customer service representative^客服代表^legal representative^法定代理人",
+"📨|Request|/rɪˈkwest/|n.|請求；要求|make a request^提出請求^upon request^應要求^formal request^正式要求",
+"📋|Requirement|/rɪˈkwaɪr.mənt/|n.|要求；必要條件|meet requirements^符合要求^entry requirement^入學/入境條件^legal requirement^法律要求",
+"🔬|Research|/ˈriː.sɝːtʃ/|n.|研究|market research^市場調查^conduct research^進行研究^research team^研究團隊",
+"📅|Reservation|/ˌrez.ɚˈveɪ.ʃən/|n.|預約；保留|make a reservation^預約^confirm reservation^確認預約^cancel reservation^取消預約",
+"🛢️|Resource|/ˈriː.sɔːrs/|n.|資源|human resources^人力資源^natural resources^自然資源^limited resources^有限的資源",
+"🗣️|Response|/rɪˈspɑːns/|n.|回應；反應|quick response^快速回應^in response to^回應...^positive response^正面回應",
+"🏗️|Responsibility|/rɪˌspɑːn.səˈbɪl.ə.t̬i/|n.|責任|take responsibility^承擔責任^full responsibility^全部責任^legal responsibility^法律責任",
+"📝|Result|/rɪˈzʌlt/|n.|結果|test result^測試結果^end result^最終結果^as a result^因此",
+"👴|Retirement|/rɪˈtaɪr.mənt/|n.|退休|retirement plan^退休計畫^early retirement^提早退休^retirement age^退休年齡",
+"💰|Revenue|/ˈrev.ə.nuː/|n.|營收；歲入|tax revenue^稅收^annual revenue^年營收^generate revenue^創造營收",
+"🧐|Review|/rɪˈvjuː/|n.|審查；評論|performance review^績效考核^peer review^同儕審查^mixed reviews^毀譽參半的評論",
+"⚠️|Risk|/rɪsk/|n.|風險|high risk^高風險^take a risk^冒險^risk management^風險管理",
+"🎭|Role|/roʊl/|n.|角色；職責|play a role^扮演角色^key role^關鍵角色^leading role^主角",
+"📏|Rule|/ruːl/|n.|規則|follow the rules^遵守規則^safety rule^安全規則^break the rules^違反規則",
+"⛑️|Safety|/ˈseɪf.ti/|n.|安全|safety first^安全第一^safety standard^安全標準^health and safety^職業安全衛生",
+"💵|Salary|/ˈsæl.ɚ.i/|n.|薪水|annual salary^年薪^base salary^底薪^competitive salary^有競爭力的薪資",
+"🏷️|Sale|/seɪl/|n.|銷售；特賣|for sale^出售^on sale^特價中^sales figures^銷售數字",
+"🧪|Sample|/ˈsæm.pəl/|n.|樣品；樣本|free sample^免費樣品^blood sample^血液樣本^random sample^隨機樣本",
+"😊|Satisfaction|/ˌsæt.ɪsˈfæk.ʃən/|n.|滿意|customer satisfaction^顧客滿意度^job satisfaction^工作滿意度^express satisfaction^表示滿意",
+"📅|Schedule|/ˈskedʒ.uːl/|n.|行程表；時刻表|on schedule^準時^ahead of schedule^提前^tight schedule^緊湊的行程",
+"🔬|Science|/ˈsaɪ.əns/|n.|科學|computer science^電腦科學^social science^社會科學^modern science^現代科學",
+"🖥️|Screen|/skriːn/|n.|螢幕|touch screen^觸控螢幕^flat screen^平面螢幕^on screen^在螢幕上",
+"🔍|Search|/sɝːtʃ/|n.|搜尋|job search^求職^search engine^搜尋引擎^search warrant^搜索票",
+"🍂|Season|/ˈsiː.zən/|n.|季節|holiday season^假期旺季^peak season^旺季^rainy season^雨季",
+"🪑|Seat|/siːt/|n.|座位|take a seat^請坐^window seat^靠窗座位^aisle seat^靠走道座位",
+"🧩|Section|/ˈsek.ʃən/|n.|部分；區域|smoking section^吸菸區^business section^商業版^cross section^橫截面",
+"🔒|Security|/səˈkjʊr.ə.t̬i/|n.|安全；保全|security guard^警衛^security check^安檢^job security^工作保障",
+"🔢|Selection|/səˈlek.ʃən/|n.|選擇；精選|wide selection^多種選擇^random selection^隨機選擇^final selection^最終選擇",
+"🧑‍🏫|Seminar|/ˈsem.ə.nɑːr/|n.|研討會|attend a seminar^參加研討會^training seminar^培訓研討會^conduct a seminar^舉辦研討會",
+"📚|Series|/ˈsɪr.iːz/|n.|系列|series of events^一連串事件^TV series^電視影集^lecture series^系列講座",
+"💁|Service|/ˈsɝː.vɪs/|n.|服務|customer service^客戶服務^room service^客房服務^out of service^暫停服務",
+"⏱️|Session|/ˈseʃ.ən/|n.|會議；期間|training session^培訓課程^Q&A session^問答時間^morning session^上午場",
+"📈|Share|/ʃer/|n.|股份；份額|market share^市佔率^share price^股價^fair share^公平的份額",
+"⏰|Shift|/ʃɪft/|n.|輪班；轉變|night shift^夜班^shift work^輪班工作^paradigm shift^典範轉移",
+"🚢|Shipment|/ˈʃɪp.mənt/|n.|貨運；裝載|overseas shipment^海外貨運^track a shipment^追蹤貨物^ready for shipment^準備出貨",
+"📉|Shortage|/ˈʃɔːr.t̬ɪdʒ/|n.|短缺|water shortage^缺水^labor shortage^缺工^food shortage^糧食短缺",
+"✍️|Signature|/ˈsɪɡ.nə.tʃɚ/|n.|簽名|authorized signature^授權簽名^specimen signature^簽名樣式^collect signatures^收集簽名",
+"🏗️|Site|/saɪt/|n.|地點；網站|construction site^工地^web site^網站^on site^現場",
+"🛠️|Skill|/skɪl/|n.|技能|communication skill^溝通技巧^technical skill^技術能力^soft skill^軟實力",
+"💡|Solution|/səˈluː.ʃən/|n.|解決方案|find a solution^找到解決方案^practical solution^實際的解決方案^cost-effective solution^符合成本效益的方案",
+"💧|Source|/sɔːrs/|n.|來源|source of income^收入來源^reliable source^可靠的消息來源^open source^開源",
+"🌌|Space|/speɪs/|n.|空間|parking space^停車位^office space^辦公空間^personal space^個人空間",
+"🎤|Speech|/spiːtʃ/|n.|演講|give a speech^發表演講^acceptance speech^得獎感言^make a speech^致詞",
+"👥|Staff|/stæf/|n.|全體員工|medical staff^醫務人員^staff member^員工^short-staffed^人手不足",
+"📏|Standard|/ˈstæn.dɚd/|n.|標準|high standard^高標準^meet the standard^符合標準^safety standard^安全標準",
+"📄|Statement|/ˈsteɪt.mənt/|n.|聲明；報表|bank statement^銀行對帳單^official statement^正式聲明^financial statement^財務報表",
+"📊|Status|/ˈsteɪ.t̬əs/|n.|狀態；地位|current status^目前狀態^social status^社會地位^check status^檢查狀態",
+"📦|Stock|/stɑːk/|n.|庫存；股票|in stock^有現貨^out of stock^缺貨^stock market^股市",
+"🗄️|Storage|/ˈstɔːr.ɪdʒ/|n.|儲存|storage room^儲藏室^storage space^儲存空間^cold storage^冷藏",
+"🏪|Store|/stɔːr/|n.|商店|department store^百貨公司^chain store^連鎖店^grocery store^雜貨店",
+"♟️|Strategy|/ˈstræt̬.ə.dʒi/|n.|策略|marketing strategy^行銷策略^business strategy^商業策略^develop a strategy^制定策略",
+"🏗️|Structure|/ˈstrʌk.tʃɚ/|n.|結構|organizational structure^組織結構^fee structure^收費結構^complex structure^複雜的結構",
+"🏆|Success|/səkˈses/|n.|成功|key to success^成功關鍵^achieve success^獲得成功^huge success^巨大的成功",
+"💡|Suggestion|/səˈdʒes.tʃən/|n.|建議|make a suggestion^提出建議^helpful suggestion^有用的建議^open to suggestions^願意接受建議",
+"📦|Supply|/səˈplaɪ/|n.|供應；補給品|supply chain^供應鏈^office supplies^辦公用品^short supply^供應短缺",
+"🤝|Support|/səˈpɔːrt/|n.|支持；支援|technical support^技術支援^customer support^客戶支援^moral support^精神支持",
+"📋|Survey|/ˈsɝː.veɪ/|n.|調查|conduct a survey^進行調查^satisfaction survey^滿意度調查^survey results^調查結果",
+"🖥️|System|/ˈsɪs.təm/|n.|系統|operating system^作業系統^security system^保全系統^legal system^法律制度",
+"🎯|Target|/ˈtɑːr.ɡɪt/|n.|目標|target market^目標市場^sales target^銷售目標^meet the target^達成目標",
+"✅|Task|/tæsk/|n.|任務|daily task^日常任務^perform a task^執行任務^daunting task^艱鉅的任務",
+"🧾|Tax|/tæks/|n.|稅|income tax^所得稅^sales tax^營業稅^tax return^報稅單",
+"🤝|Team|/tiːm/|n.|團隊|team building^團隊建設^team member^團隊成員^management team^管理團隊",
+"💻|Technology|/tekˈnɑː.lə.dʒi/|n.|科技；技術|information technology^資訊科技^advanced technology^先進技術^cutting-edge technology^尖端科技",
+"⏳|Term|/tɝːm/|n.|條款；期限；術語|long-term^長期的^short-term^短期的^terms and conditions^條款與條件",
+"🧪|Test|/test/|n.|測試；考試|run a test^進行測試^blood test^驗血^pass the test^通過考試",
+"🎫|Ticket|/ˈtɪk.ɪt/|n.|票；罰單|buy a ticket^買票^parking ticket^違規停車罰單^round-trip ticket^來回票",
+"⏰|Time|/taɪm/|n.|時間|on time^準時^part-time^兼職^waste time^浪費時間",
+"🏷️|Title|/ˈtaɪ.t̬əl/|n.|標題；頭銜|job title^職稱^official title^正式頭銜^title deed^地契",
+"🛠️|Tool|/tuːl/|n.|工具|marketing tool^行銷工具^right tool^正確的工具^power tool^電動工具",
+"💬|Topic|/ˈtɑː.pɪk/|n.|主題|main topic^主要主題^current topic^當前話題^discuss a topic^討論主題",
+"🚌|Tour|/tʊr/|n.|旅遊；參觀|guided tour^導覽^factory tour^工廠參觀^go on a tour^去旅遊",
+"⚖️|Trade|/treɪd/|n.|貿易|international trade^國際貿易^fair trade^公平貿易^trade show^貿易展",
+"🏋️|Training|/ˈtreɪ.nɪŋ/|n.|訓練|training course^培訓課程^on-the-job training^在職訓練^staff training^員工培訓",
+"💳|Transaction|/trænˈzæk.ʃən/|n.|交易|secure transaction^安全交易^bank transaction^銀行交易^online transaction^線上交易",
+"🔄|Transfer|/ˈtræns.fɝː/|n.|轉移；調任；轉帳|bank transfer^銀行轉帳^file transfer^檔案傳輸^request a transfer^申請調職",
+"🚌|Transportation|/ˌtræn.spɔːrˈteɪ.ʃən/|n.|運輸；交通工具|public transportation^大眾運輸^mode of transportation^交通方式^transportation cost^運輸成本",
+"✈️|Travel|/ˈtræv.əl/|n.|旅行|business travel^商務旅行^travel agency^旅行社^travel expenses^差旅費",
+"📈|Trend|/trend/|n.|趨勢|market trend^市場趨勢^current trend^當前趨勢^upward trend^上升趨勢",
+"🎒|Trip|/trɪp/|n.|旅行|business trip^出差^day trip^一日遊^round trip^來回行程",
+"⌨️|Type|/taɪp/|n.|類型|type of business^商業類型^blood type^血型^prototype^原型",
+"📦|Unit|/ˈjuː.nɪt/|n.|單位；單元|storage unit^倉儲單位^production unit^生產單位^intensive care unit^加護病房",
+"🎓|University|/ˌjuː.nəˈvɝː.sə.t̬i/|n.|大學|attend university^上大學^university degree^大學學位^state university^州立大學",
+"🔄|Update|/ˈʌp.deɪt/|n.|更新；最新消息|software update^軟體更新^news update^最新新聞^provide an update^提供最新消息",
+"🔨|Use|/juːs/|n.|使用|make use of^利用^for personal use^供個人使用^easy to use^易於使用",
+"🏖️|Vacation|/veɪˈkeɪ.ʃən/|n.|假期|on vacation^度假中^take a vacation^休假^summer vacation^暑假",
+"💎|Value|/ˈvæl.juː/|n.|價值|market value^市場價值^good value^物超所值^added value^附加價值",
+"🎨|Variety|/vəˈraɪ.ə.t̬i/|n.|多樣化；種類|wide variety^種類繁多^variety of choices^多種選擇^garden variety^普通的種類",
+"🚗|Vehicle|/ˈviː.ə.kəl/|n.|車輛|motor vehicle^機動車輛^company vehicle^公務車^utility vehicle^多用途車輛",
+"🏪|Vendor|/ˈven.dɚ/|n.|供應商；攤販|street vendor^街頭攤販^preferred vendor^首選供應商^vendor list^供應商名單",
+"ℹ️|Version|/ˈvɝː.ʃən/|n.|版本|latest version^最新版本^final version^最終版本^trial version^試用版",
+"🧼|Bubble|/ˈbʌb.əl/|n.|泡沫；氣泡|housing bubble^房市泡沫^burst the bubble^戳破泡沫^economic bubble^經濟泡沫",
+"🏗️|Build|/bɪld/|v.|建造；建立|build a relationship^建立關係^build trust^建立信任^build a reputation^建立聲譽",
+"📦|Bulk|/bʌlk/|n.|大量；體積|in bulk^大量(購買)^bulk order^大宗訂單^bulk discount^量購折扣",
+"📌|Bulletin|/ˈbʊl.ə.tɪn/|n.|公告；快報|bulletin board^佈告欄^news bulletin^新聞快報^issuing a bulletin^發布公告",
+"🎒|Bundle|/ˈbʌn.dəl/|n.|捆；束；組合|bundle offer^組合優惠^software bundle^軟體組合^bundle together^捆在一起",
+"⚖️|Burden|/ˈbɝː.dən/|n.|負擔|financial burden^財務負擔^burden of proof^舉證責任^heavy burden^沈重的負擔",
+"🏢|Bureau|/ˈbjʊr.oʊ/|n.|局；處；署|travel bureau^旅行社^weather bureau^氣象局^information bureau^詢問處",
+"🔥|Burn|/bɝːn/|v.|燃燒；燒毀|burn out^精疲力竭^burn calories^燃燒卡路里^money to burn^錢多到花不完",
+"💼|Business|/ˈbɪz.nɪs/|n.|商業；生意|business trip^出差^business card^名片^do business^做生意",
+"📞|Busy|/ˈbɪz.i/|adj.|忙碌的；佔線的|busy line^電話佔線^busy schedule^行程滿檔^keep busy^保持忙碌",
+"🖲️|Button|/ˈbʌt.ən/|n.|按鈕；扣子|push the button^按下按鈕^panic button^警急按鈕^belly button^肚臍",
+"🛒|Buy|/baɪ/|v.|購買|buy in bulk^大量購買^buy time^爭取時間^buy shares^購買股票",
+"🗄️|Cabinet|/ˈkæb.ə.net/|n.|櫃子；內閣|file cabinet^檔案櫃^kitchen cabinet^廚房櫥櫃^cabinet meeting^內閣會議",
+"🔌|Cable|/ˈkeɪ.bəl/|n.|電纜；有線電視|cable TV^有線電視^fiber optic cable^光纖電纜^power cable^電源線",
+"🧮|Calculate|/ˈkæl.kjə.leɪt/|v.|計算|calculate the cost^計算成本^calculate the risk^計算風險^miscalculate^計算錯誤",
+"📅|Calendar|/ˈkæl.ən.dɚ/|n.|日曆；行事曆|mark the calendar^標記日曆^calendar year^曆年^social calendar^社交行事曆",
+"📞|Call|/kɑːl/|v.|打電話；呼叫|return a call^回電^conference call^電話會議^on call^待命",
+"📢|Campaign|/kæmˈpeɪn/|n.|活動；競選|marketing campaign^行銷活動^election campaign^競選活動^launch a campaign^發起活動",
+"🚫|Cancel|/ˈkæn.səl/|v.|取消|cancel a meeting^取消會議^cancel a reservation^取消預約^cancel a subscription^取消訂閱",
+"💸|Cancellation|/ˌkæn.səˈleɪ.ʃən/|n.|取消|cancellation fee^取消費用^cancellation policy^取消政策^last-minute cancellation^臨時取消",
+"💪|Capability|/ˌkeɪ.pəˈbɪl.ə.t̬i/|n.|能力；性能|high capability^高性能^capability to^有能力做...^production capability^生產能力",
+"🏟️|Capacity|/kəˈpæs.ə.t̬i/|n.|容量；能力|seating capacity^座位容量^full capacity^滿載^at capacity^達到飽和",
+"🏛️|Capital|/ˈkæp.ə.t̬əl/|n.|首都；資本|venture capital^創投^working capital^營運資金^capital city^首都",
+"🚢|Captain|/ˈkæp.tən/|n.|隊長；機長；船長|team captain^隊長^flight captain^機長^captain of the ship^船長",
+"🚗|Car|/kɑːr/|n.|汽車|rental car^租賃車^company car^公務車^sports car^跑車",
+"💳|Card|/kɑːrd/|n.|卡片|credit card^信用卡^business card^名片^ID card^身分證",
+"🤲|Care|/ker/|n.|照顧；小心|handle with care^小心輕放^take care of^照顧^customer care^客戶關懷",
+"⚠️|Careful|/ˈker.fəl/|adj.|小心的|be careful^小心^careful planning^周詳的計畫^careful consideration^仔細考慮",
+"🚢|Cargo|/ˈkɑːr.ɡoʊ/|n.|貨物(船/飛機)|cargo ship^貨船^cargo plane^貨機^handle cargo^搬運貨物",
+"🧶|Carpet|/ˈkɑːr.pət/|n.|地毯|red carpet^紅地毯^install carpet^鋪地毯^roll out the carpet^熱烈歡迎",
+"🏋️|Carry|/ˈker.i/|v.|攜帶；執行|carry out^執行^carry weight^有份量/重要^carry on^繼續",
+"💼|Case|/keɪs/|n.|情況；案例；箱子|in case^以防萬一^briefcase^公事包^case study^個案研究",
+"💵|Cash|/kæʃ/|n.|現金|cash flow^現金流^petty cash^零用金^pay in cash^付現",
+"👕|Casual|/ˈkæʒ.ju.əl/|adj.|休閒的；隨便的|casual wear^休閒服^casual meeting^非正式會議^business casual^商務休閒風",
+"📖|Catalog|/ˈkæt̬.əl.ɑːɡ/|n.|目錄|product catalog^產品目錄^online catalog^線上目錄^mail-order catalog^郵購目錄",
+"📂|Category|/ˈkæt̬.ə.ɡɔːr.i/|n.|類別|main category^主要類別^fall into a category^屬於某一類^broad category^廣泛的類別",
+"🍽️|Catering|/ˈkeɪ.t̬ɚ.ɪŋ/|n.|外燴；餐飲服務|catering service^外燴服務^catering company^外燴公司^wedding catering^婚禮餐飲",
+"🔥|Cause|/kɑːz/|n.|原因；導致|root cause^根本原因^cause and effect^因果^cause damage^造成損害",
+"⚠️|Caution|/ˈkɑː.ʃən/|n.|謹慎；警告|proceed with caution^謹慎行事^caution tape^封鎖線^exercise caution^小心謹慎",
+"🪜|Ceiling|/ˈsiː.lɪŋ/|n.|天花板；上限|glass ceiling^玻璃天花板(女性升遷障礙)^price ceiling^價格上限^hit the ceiling^氣炸了",
+"🎉|Celebrate|/ˈsel.ə.breɪt/|v.|慶祝|celebrate a victory^慶祝勝利^celebrate success^慶祝成功^widely celebrated^廣受讚譽",
+"🎊|Celebration|/ˌsel.əˈbreɪ.ʃən/|n.|慶典|anniversary celebration^週年慶典^in celebration of^為了慶祝...^grand celebration^盛大的慶典",
+"📱|Cell|/sel/|n.|細胞；電池；手機|cell phone^手機^stem cell^幹細胞^fuel cell^燃料電池",
+"🎯|Center|/ˈsen.t̬ɚ/|n.|中心|conference center^會議中心^city center^市中心^call center^客服中心",
+"🎀|Ceremony|/ˈser.ə.mə.ni/|n.|典禮|opening ceremony^開幕典禮^awards ceremony^頒獎典禮^signing ceremony^簽約儀式",
+"🤔|Certain|/ˈsɝː.tən/|adj.|確定的；某個|make certain^確認^fairly certain^相當確定^for certain^肯定地",
+"📜|Certificate|/sɚˈtɪf.ə.kət/|n.|證書|gift certificate^禮券^birth certificate^出生證明^medical certificate^診斷證明",
+"🏅|Certification|/ˌsɝː.t̬ə.fəˈkeɪ.ʃən/|n.|認證|professional certification^專業認證^obtain certification^獲得認證^certification program^認證課程",
+"⛓️|Chain|/tʃeɪn/|n.|鏈；連鎖店|supply chain^供應鏈^chain store^連鎖店^restaurant chain^連鎖餐廳",
+"🪑|Chair|/tʃer/|n.|椅子；主席|chair a meeting^主持會議^office chair^辦公椅^take the chair^擔任主席",
+"👔|Chairman|/ˈtʃer.mən/|n.|董事長；主席|chairman of the board^董事長^vice chairman^副主席^founding chairman^創辦主席",
+"🎲|Chance|/tʃæns/|n.|機會；機率|by chance^偶然^take a chance^冒險^fat chance^機會渺茫",
+"🔄|Change|/tʃeɪndʒ/|n.|改變；零錢|keep the change^不用找了^change of plan^計畫變更^change management^變革管理",
+"📺|Channel|/ˈtʃæn.əl/|n.|頻道；管道|distribution channel^銷售管道^marketing channel^行銷管道^communication channel^溝通管道",
+"📖|Chapter|/ˈtʃæp.tɚ/|n.|章節；分會|local chapter^地方分會^chapter 11^破產保護^next chapter^下一個篇章",
+"🔋|Charge|/tʃɑːrdʒ/|v.|收費；充電；負責|in charge of^負責^charge a fee^收費^free of charge^免費",
+"❤️|Charity|/ˈtʃer.ə.t̬i/|n.|慈善；慈善機構|charity event^慈善活動^raise money for charity^為慈善募款^charity auction^慈善拍賣",
+"📉|Chart|/tʃɑːrt/|n.|圖表|flow chart^流程圖^organizational chart^組織圖^pie chart^圓餅圖",
+"🏷️|Cheap|/tʃiːp/|adj.|便宜的|cheap labor^廉價勞工^dirt cheap^非常便宜^look cheap^看起來很廉價",
+"✅|Check|/tʃek/|v.|檢查；支票|check in^報到^check out^退房/結帳^background check^背景調查",
+"👨‍🍳|Chef|/ʃef/|n.|主廚|head chef^行政主廚^sous chef^二廚^pastry chef^甜點師",
+"🧪|Chemical|/ˈkem.ɪ.kəl/|n.|化學物質|chemical reaction^化學反應^toxic chemical^有毒化學物^chemical industry^化學工業",
+"👮|Chief|/tʃiːf/|n.|首領；主要的|editor in chief^總編輯^chief executive^執行長^chief financial officer^財務長",
+"👶|Child|/tʃaɪld/|n.|小孩|only child^獨生子^child care^育兒服務^child labor^童工",
+"🤔|Choice|/tʃɔɪs/|n.|選擇|make a choice^做出選擇^wide choice^多種選擇^first choice^首選",
+"👈|Choose|/tʃuːz/|v.|選擇|choose wisely^明智選擇^choose from^從...選擇^hard to choose^難以選擇",
+"⭕|Circle|/ˈsɝː.kəl/|n.|圓圈；圈子|business circle^商業圈^inner circle^核心圈^come full circle^回到原點",
+"🏙️|City|/ˈsɪt.i/|n.|城市|city hall^市政廳^capital city^首都^inner city^舊城區/貧民區",
+"📝|Claim|/kleɪm/|v.|聲稱；索賠；領取|insurance claim^保險索賠^claim baggage^領取行李^false claim^不實指控",
+"🔍|Clarify|/ˈkler.ə.faɪ/|v.|釐清；闡明|clarify the issue^釐清問題^clarify a point^闡明觀點^please clarify^請說明清楚",
+"🎓|Class|/klæs/|n.|班級；等級；艙等|economy class^經濟艙^business class^商務艙^first class^頭等艙",
+"📜|Clause|/klɑːz/|n.|條款；子句|contract clause^合約條款^penalty clause^罰則條款^confidentiality clause^保密條款",
+"✨|Clean|/kliːn/|adj.|乾淨的|clean energy^潔淨能源^keep clean^保持乾淨^clean slate^重新開始",
+"👓|Clear|/klɪr/|adj.|清楚的；晴朗的|clear instruction^清楚的指示^make it clear^說清楚^crystal clear^非常清楚",
+"🛂|Clearance|/ˈklɪr.əns/|n.|清除；許可|security clearance^安全許可^clearance sale^清倉大拍賣^customs clearance^通關",
+"💁|Clerk|/klɝːk/|n.|店員；辦事員|sales clerk^售貨員^desk clerk^櫃台人員^file clerk^檔案管理員",
+"🤓|Clever|/ˈklev.ɚ/|adj.|聰明的|clever idea^聰明的點子^clever marketing^巧妙的行銷^too clever^自作聰明",
+"🤝|Client|/ˈklaɪ.ənt/|n.|客戶|potential client^潛在客戶^loyal client^忠實客戶^client base^客戶群",
+"🌤️|Climate|/ˈklaɪ.mət/|n.|氣候|climate change^氣候變遷^economic climate^經濟氣候^political climate^政治氛圍",
+"🧗|Climb|/klaɪm/|v.|攀爬；上升|climb the ladder^力爭上游^prices climb^價格攀升^climb steeply^急劇上升",
+"⏰|Clock|/klɑːk/|n.|時鐘|around the clock^日以繼夜^clock in^打卡上班^against the clock^趕時間",
+"🚪|Close|/kloʊz/|v.|關閉；結束|close a deal^成交^close relation^密切關係^close look^仔細看",
+"🔚|Closing|/ˈkloʊ.zɪŋ/|n.|結束；結尾|closing remarks^閉幕致詞^closing date^截止日期^closing price^收盤價",
+"👗|Clothes|/kloʊðz/|n.|衣服|work clothes^工作服^change clothes^換衣服^clothes shop^服飾店",
+"👔|Coach|/koʊtʃ/|n.|教練；經濟艙(英)|business coach^企業教練^coach seat^經濟艙座位^head coach^總教練",
+"⚫|Coal|/koʊl/|n.|煤炭|coal mine^煤礦^coal industry^煤炭工業^burn coal^燃煤",
+"🌊|Coast|/koʊst/|n.|海岸|east coast^東岸^coast guard^海岸巡防隊^off the coast^在外海",
+"🧥|Coat|/koʊt/|n.|外套；塗層|lab coat^實驗袍^rain coat^雨衣^fresh coat of paint^新刷的一層漆",
+"🔢|Code|/koʊd/|n.|代碼；法規|dress code^服裝規定^bar code^條碼^zip code^郵遞區號",
+"☕|Coffee|/ˈkɑː.fi/|n.|咖啡|coffee break^咖啡時間^instant coffee^即溶咖啡^coffee shop^咖啡廳",
+"🪙|Coin|/kɔɪn/|n.|硬幣|flip a coin^擲硬幣^insert a coin^投入硬幣^two sides of the same coin^一體兩面",
+"❄️|Cold|/koʊld/|adj.|冷的；感冒|catch a cold^感冒^cold call^陌生電訪^cold storage^冷藏",
+"🤝|Collaborate|/kəˈlæb.ə.reɪt/|v.|合作|collaborate with^與...合作^collaborate on^合作進行...^closely collaborate^緊密合作",
+"🔗|Collaboration|/kəˌlæb.əˈreɪ.ʃən/|n.|合作成果|in collaboration with^與...合作^close collaboration^密切合作^fruitful collaboration^成果豐碩的合作",
+"📉|Collapse|/kəˈlæps/|v.|倒塌；崩潰|market collapse^市場崩盤^collapse under pressure^在壓力下崩潰^sudden collapse^突然倒塌",
+"👥|Colleague|/ˈkɑː.liːɡ/|n.|同事|senior colleague^資深同事^trusted colleague^信賴的同事^meet with colleagues^與同事會面",
+"📥|Collect|/kəˈlekt/|v.|收集；領取|collect data^收集數據^collect baggage^領取行李^collect taxes^徵稅",
+"🖼️|Collection|/kəˈlek.ʃən/|n.|收藏品；系列|new collection^新系列(服裝)^private collection^私人收藏^data collection^資料收集",
+"🤲|Collective|/kəˈlek.tɪv/|adj.|集體的|collective effort^共同努力^collective responsibility^集體責任^collective bargaining^集體談判",
+"➕|Combine|/kəmˈbaɪn/|v.|結合|combine efforts^共同努力^combine business with pleasure^寓工作於娛樂^combined experience^綜合經驗",
+"🛋️|Comfort|/ˈkʌm.fɚt/|n.|舒適；安慰|comfort zone^舒適圈^for comfort^為了舒適^take comfort^感到安慰",
+"🗣️|Command|/kəˈmænd/|n.|命令；掌握|good command of^精通(語言)^chain of command^指揮系統^issue a command^下達命令",
+"💬|Comment|/ˈkɑː.ment/|n.|評論|no comment^不予置評^leave a comment^留言^make a comment^發表評論",
+"🌐|Commerce|/ˈkɑː.mɝːs/|n.|商業；貿易|e-commerce^電子商務^chamber of commerce^商會^international commerce^國際貿易",
+"📺|Commercial|/kəˈmɝː.ʃəl/|n.|廣告；商業的|TV commercial^電視廣告^commercial property^商業地產^commercial break^廣告時間",
+"💰|Commission|/kəˈmɪʃ.ən/|n.|佣金；委員會|sales commission^銷售佣金^commission rate^佣金率^high commission^高級專員公署",
+"💍|Commit|/kəˈmɪt/|v.|承諾；犯罪|commit to^承諾...^commit a crime^犯罪^fully committed^全心全意投入",
+"🤝|Commitment|/kəˈmɪt.mənt/|n.|承諾；投入|make a commitment^做出承諾^long-term commitment^長期承諾^honor a commitment^信守承諾",
+"👥|Committee|/kəˈmɪt.i/|n.|委員會|steering committee^指導委員會^safety committee^安全委員會^form a committee^組成委員會",
+"🌍|Common|/ˈkɑː.mən/|adj.|常見的；共同的|common ground^共同點^common sense^常識^common practice^慣例",
+"🗣️|Communicate|/kəˈmjuː.nə.keɪt/|v.|溝通|communicate effectively^有效溝通^communicate with^與...溝通^communicate ideas^傳達想法",
+"🏘️|Community|/kəˈmjuː.nə.t̬i/|n.|社區；社群|local community^當地社區^community service^社區服務^sense of community^歸屬感",
+"🚌|Commute|/kəˈmjuːt/|v.|通勤|daily commute^日常通勤^long commute^長途通勤^commute to work^通勤上班",
+"⚖️|Compare|/kəmˈper/|v.|比較|compare to^與...相比^compare prices^比價^cannot compare^無法比較",
+"🧩|Compatible|/kəmˈpæt̬.ə.bəl/|adj.|相容的|compatible with^與...相容^software compatible^軟體相容^fully compatible^完全相容",
+"📅|Appointment|/əˈpɔɪnt.mənt/|n.|預約；任命|make an appointment^預約^scheduled appointment^排定的預約^doctor appointment^看診預約",
+"🤝|Agreement|/əˈɡriː.mənt/|n.|協議；同意|reach an agreement^達成協議^sign an agreement^簽署協議^verbal agreement^口頭協議",
+"📢|Announcement|/əˈnaʊns.mənt/|n.|公告；宣布|make an announcement^發表公告^official announcement^正式公告^public announcement^公開宣布",
+"📝|Application|/ˌæp.ləˈkeɪ.ʃən/|n.|申請；應用|job application^求職申請^submit an application^提交申請^application form^申請表",
+"🏗️|Architect|/ˈɑːr.kə.tekt/|n.|建築師|chief architect^首席建築師^landscape architect^景觀建築師^hired an architect^聘請建築師",
+"💰|Budget|/ˈbʌdʒ.ɪt/|n.|預算|budget cut^削減預算^advertising budget^廣告預算^within budget^在預算內",
+"📈|Benefit|/ˈben.ə.fɪt/|n.|利益；津貼|employee benefits^員工福利^mutual benefit^互利^health benefits^健康保險津貼",
+"🏛️|Candidate|/ˈkæn.dɪ.dət/|n.|候選人；應徵者|presidential candidate^總統候選人^job candidate^求職者^qualified candidate^合格的候選人",
+"💼|Career|/kəˈrɪr/|n.|職業；生涯|career path^職涯路徑^pursue a career^追求職業生涯^career development^職涯發展",
+"📉|Challenge|/ˈtʃæl.ɪndʒ/|n.|挑戰|face a challenge^面臨挑戰^accept a challenge^接受挑戰^major challenge^主要挑戰",
+"🗣️|Communication|/kəˌmjuː.nəˈkeɪ.ʃən/|n.|溝通；通訊|effective communication^有效溝通^communication skills^溝通技巧^improve communication^改善溝通",
+"🏢|Company|/ˈkʌm.pə.ni/|n.|公司；陪伴|parent company^母公司^establish a company^成立公司^insurance company^保險公司",
+"🏆|Competition|/ˌkɑːm.pəˈtɪʃ.ən/|n.|競爭；比賽|stiff competition^激烈的競爭^enter a competition^參加比賽^market competition^市場競爭",
+"🚧|Construction|/kənˈstrʌk.ʃən/|n.|建設；建造|under construction^施工中^construction site^工地^construction costs^建築成本",
+"📜|Contract|/ˈkɑːn.trækt/|n.|合約|sign a contract^簽合約^breach of contract^違約^renew a contract^續約",
+"💳|Contribution|/ˌkɑːn.trɪˈbjuː.ʃən/|n.|貢獻；捐款|make a contribution^做出貢獻^charitable contribution^慈善捐款^valuable contribution^寶貴的貢獻",
+"👥|Coworker|/ˈkoʊˌwɝː.kɚ/|n.|同事|get along with coworkers^與同事相處融洽^new coworker^新同事^supportive coworker^給予支持的同事",
+"🧑‍💻|Customer|/ˈkʌs.tə.mɚ/|n.|顧客|customer service^客戶服務^loyal customer^忠實顧客^potential customer^潛在客戶",
+"📅|Deadline|/ˈded.laɪn/|n.|截止日期|meet the deadline^趕上截止日期^miss the deadline^錯過截止日期^tight deadline^緊迫的期限",
+"📦|Delivery|/dɪˈlɪv.ɚ.i/|n.|遞送；交付|free delivery^免費運送^express delivery^快遞^delivery date^送貨日期",
+"🛫|Departure|/dɪˈpɑːr.tʃɚ/|n.|出發；離開|departure time^出發時間^scheduled departure^預定出發^departure gate^登機門",
+"🏢|Department|/dɪˈpɑːr.tmənt/|n.|部門|sales department^業務部^HR department^人資部^head of department^部門主管",
+"📝|Description|/dɪˈskrɪp.ʃən/|n.|描述；說明|job description^職位描述^detailed description^詳細描述^brief description^簡短說明",
+"👔|Director|/dɪˈrek.tɚ/|n.|主任；董事；導演|managing director^總經理^board of directors^董事會^creative director^創意總監",
+"📄|Document|/ˈdɑː.kjə.mənt/|n.|文件|sign a document^簽署文件^official document^正式文件^attached document^附加文件",
+"🎓|Education|/ˌedʒ.əˈkeɪ.ʃən/|n.|教育|higher education^高等教育^continue education^繼續教育^education system^教育制度",
+"⚡|Efficiency|/ɪˈfɪʃ.ən.si/|n.|效率|improve efficiency^提高效率^energy efficiency^能源效率^operational efficiency^營運效率",
+"🗳️|Election|/iˈlek.ʃən/|n.|選舉|win an election^贏得選舉^general election^大選^election campaign^競選活動",
+"💼|Employment|/ɪmˈplɔɪ.mənt/|n.|就業；僱用|employment agency^就業仲介^full-time employment^全職工作^employment contract^僱傭合約",
+"🔧|Equipment|/ɪˈkwɪp.mənt/|n.|設備；裝備|office equipment^辦公設備^heavy equipment^重型設備^safety equipment^安全裝備",
+"🎢|Experience|/ɪkˈspɪr.i.əns/|n.|經驗|work experience^工作經驗^hands-on experience^實務經驗^customer experience^顧客體驗",
+"🏭|Factory|/ˈfæk.tɚ.i/|n.|工廠|factory worker^工廠工人^textile factory^紡織廠^factory floor^廠房",
+"💵|Finance|/ˈfaɪ.næns/|n.|財務；金融|finance department^財務部^personal finance^個人理財^corporate finance^企業金融",
+"✈️|Flight|/flaɪt/|n.|航班；飛行|book a flight^預訂航班^cancel a flight^取消航班^flight attendant^空服員",
+"🔮|Forecast|/ˈfɔːr.kæst/|n.|預測；預報|weather forecast^天氣預報^sales forecast^銷售預測^economic forecast^經濟預測",
+"🖼️|Foundation|/faʊnˈdeɪ.ʃən/|n.|基礎；基金會|lay the foundation^奠定基礎^charitable foundation^慈善基金會^solid foundation^堅實的基礎",
+"🏛️|Government|/ˈɡʌv.ɚn.mənt/|n.|政府|government official^政府官員^local government^地方政府^federal government^聯邦政府",
+"🌱|Growth|/ɡroʊθ/|n.|成長；增長|economic growth^經濟成長^population growth^人口增長^rapid growth^快速成長",
+"🛡️|Guarantee|/ˌɡær.ənˈtiː/|n.|保證；保固|satisfaction guarantee^滿意保證^money-back guarantee^退款保證^under guarantee^在保固期內",
+"🏥|Health|/helθ/|n.|健康|health insurance^健康保險^public health^公共衛生^health care^醫療保健",
+"📅|Holiday|/ˈhɑː.lə.deɪ/|n.|假期；節日|public holiday^國定假日^go on holiday^去度假^holiday season^假期旺季",
+"🏨|Hotel|/hoʊˈtel/|n.|飯店|book a hotel^預訂飯店^hotel room^飯店房間^luxury hotel^豪華飯店",
+"💡|Idea|/aɪˈdiː.ə/|n.|想法；主意|good idea^好主意^innovative idea^創新的想法^share an idea^分享想法",
+"📈|Improvement|/ɪmˈpruːv.mənt/|n.|改善；改進|room for improvement^改善空間^significant improvement^顯著的改善^make improvements^做出改進",
+"💵|Income|/ˈɪn.kʌm/|n.|收入；所得|annual income^年收入^disposable income^可支配收入^income tax^所得稅",
+"🏭|Industry|/ˈɪn.də.stri/|n.|工業；行業|automotive industry^汽車工業^tech industry^科技業^service industry^服務業",
+"ℹ️|Information|/ˌɪn.fɚˈmeɪ.ʃən/|n.|資訊|contact information^聯絡資訊^more information^更多資訊^confidential information^機密資訊",
+"📝|Instruction|/ɪnˈstrʌk.ʃən/|n.|指示；說明|follow instructions^遵守指示^detailed instructions^詳細說明^instruction manual^說明書",
+"🛡️|Insurance|/ɪnˈʃʊr.əns/|n.|保險|life insurance^人壽保險^car insurance^汽車保險^insurance policy^保單",
+"🎤|Interview|/ˈɪn.t̬ɚ.vjuː/|n.|面試；採訪|job interview^工作面試^conduct an interview^進行面試^exclusive interview^獨家專訪",
+"📦|Inventory|/ˈɪn.vən.tɔːr.i/|n.|庫存；存貨|inventory control^庫存管理^take inventory^盤點^low inventory^低庫存",
+"💸|Investment|/ɪnˈvest.mənt/|n.|投資|foreign investment^外國投資^return on investment^投資報酬率^long-term investment^長期投資",
+"🧾|Invoice|/ˈɪn.vɔɪs/|n.|發票；請款單|send an invoice^寄送請款單^pay an invoice^支付發票^invoice number^發票號碼",
+"🧠|Knowledge|/ˈnɑː.lɪdʒ/|n.|知識|common knowledge^常識^technical knowledge^技術知識^gain knowledge^獲取知識",
+"🧪|Laboratory|/ˈlæb.rə.tɔːr.i/|n.|實驗室|research laboratory^研究實驗室^laboratory test^實驗室測試^medical laboratory^醫學實驗室",
+"🗣️|Language|/ˈlæŋ.ɡwɪdʒ/|n.|語言|foreign language^外語^body language^肢體語言^second language^第二語言",
+"⚖️|Law|/lɑː/|n.|法律|break the law^違法^pass a law^通過法律^corporate law^公司法",
+"👔|Leadership|/ˈliː.dɚ.ʃɪp/|n.|領導力；領導階層|leadership skills^領導技巧^strong leadership^強有力的領導^leadership team^領導團隊",
+"📍|Location|/loʊˈkeɪ.ʃən/|n.|地點；位置|prime location^黃金地段^strategic location^戰略位置^current location^目前位置",
+"🛠️|Maintenance|/ˈmeɪn.tən.əns/|n.|維護；保養|routine maintenance^例行保養^low maintenance^低維護^maintenance cost^維修成本",
+"👔|Management|/ˈmæn.ədʒ.mənt/|n.|管理；經營團隊|time management^時間管理^risk management^風險管理^upper management^高層管理",
+"🏪|Market|/ˈmɑːr.kɪt/|n.|市場|target market^目標市場^stock market^股票市場^market share^市場佔有率",
+"📢|Marketing|/ˈmɑːr.kɪ.tɪŋ/|n.|行銷|marketing strategy^行銷策略^marketing campaign^行銷活動^marketing manager^行銷經理",
+"🧪|Material|/məˈtɪr.i.əl/|n.|材料；素材|raw material^原物料^building material^建築材料^promotional material^宣傳素材",
+"🍖|Meal|/miːl/|n.|餐點|business meal^商務餐敘^enjoy a meal^享用餐點^skip a meal^略過一餐",
+"🩺|Medicine|/ˈmed.ɪ.sən/|n.|藥物；醫學|take medicine^吃藥^preventive medicine^預防醫學^prescribe medicine^開藥",
+"🤝|Meeting|/ˈmiː.tɪŋ/|n.|會議|attend a meeting^參加會議^schedule a meeting^安排會議^staff meeting^員工會議",
+"👥|Member|/ˈmem.bɚ/|n.|成員；會員|staff member^員工^board member^董事會成員^become a member^成為會員",
+"📝|Message|/ˈmes.ɪdʒ/|n.|訊息|leave a message^留言^text message^簡訊^send a message^傳送訊息",
+"💰|Money|/ˈmʌn.i/|n.|錢|save money^存錢^spend money^花錢^borrow money^借錢",
+"🤝|Negotiation|/nəˌɡoʊ.ʃiˈeɪ.ʃən/|n.|談判；協商|contract negotiation^合約談判^enter into negotiation^進入協商^salary negotiation^薪資談判",
+"📰|News|/nuːz/|n.|新聞；消息|good news^好消息^breaking news^突發新聞^latest news^最新消息",
+"📓|Note|/noʊt/|n.|筆記；便條|take notes^做筆記^leave a note^留便條^thank-you note^感謝函",
+"🏢|Office|/ˈɑː.fɪs/|n.|辦公室|head office^總部^office hours^辦公時間^office supplies^辦公用品",
+"👮|Officer|/ˈɑː.fɪ.sɚ/|n.|官員；警官|police officer^警官^chief executive officer^執行長^loan officer^貸款專員",
+"💡|Opportunity|/ˌɑː.pɚˈtuː.nə.t̬i/|n.|機會|job opportunity^工作機會^miss an opportunity^錯失良機^business opportunity^商機",
+"📦|Order|/ˈɔːr.dɚ/|n.|訂單；順序|place an order^下訂單^out of order^故障^confirm an order^確認訂單",
+"🏢|Organization|/ˌɔːr.ɡən.əˈzeɪ.ʃən/|n.|組織；機構|non-profit organization^非營利組織^charitable organization^慈善機構^restructure the organization^重組機構",
+"📄|Paper|/ˈpeɪ.pɚ/|n.|紙；文件；報紙|recycle paper^回收紙張^white paper^白皮書^sign papers^簽署文件",
+"👥|Partner|/ˈpɑːrt.nɚ/|n.|夥伴；合夥人|business partner^商業夥伴^trading partner^貿易夥伴^senior partner^資深合夥人",
+"🚶|Passenger|/ˈpæs.ən.dʒɚ/|n.|乘客|passenger seat^乘客座位^train passenger^火車乘客^pick up a passenger^接載乘客",
+"💳|Payment|/ˈpeɪ.mənt/|n.|付款；支付|make a payment^付款^late payment^延遲付款^payment method^付款方式",
+"👮|Permission|/pɚˈmɪʃ.ən/|n.|許可；准許|ask for permission^請求許可^grant permission^給予許可^written permission^書面許可",
+"📋|Plan|/plæn/|n.|計畫|business plan^商業計畫^action plan^行動計畫^change of plan^計畫變更",
+"📜|Policy|/ˈpɑː.lə.si/|n.|政策；保單|company policy^公司政策^return policy^退貨政策^insurance policy^保險單",
+"🕴️|Position|/pəˈzɪʃ.ən/|n.|職位；位置|management position^管理職位^vacant position^空缺職位^apply for a position^申請職位",
+"⚡|Power|/ˈpaʊ.ɚ/|n.|權力；電力|power failure^停電^nuclear power^核能^purchasing power^購買力",
+"📊|Practice|/ˈpræk.tɪs/|n.|練習；慣例|standard practice^標準慣例^put into practice^付諸實行^private practice^私人執業",
+"🎁|Present|/ˈprez.ənt/|n.|禮物；目前|birthday present^生日禮物^at present^目前^give a present^送禮物",
+"💵|Price|/praɪs/|n.|價格|high price^高價^price tag^價格標籤^reasonable price^合理的價格",
+"🖨️|Printer|/ˈprɪn.t̬ɚ/|n.|印表機|laser printer^雷射印表機^color printer^彩色印表機^printer cartridge^印表機墨水匣",
+"⚠️|Problem|/ˈprɑː.bləm/|n.|問題|solve a problem^解決問題^technical problem^技術問題^deal with a problem^處理問題",
+"🏭|Process|/ˈprɑː.ses/|n.|過程；程序|manufacturing process^製造過程^hiring process^招聘流程^application process^申請程序",
+"🛠️|Product|/ˈprɑː.dʌkt/|n.|產品|new product^新產品^product development^產品開發^product launch^產品發表",
+"📦|Production|/prəˈdʌk.ʃən/|n.|生產；產量|mass production^大量生產^production line^生產線^production cost^生產成本",
+"🎓|Profession|/prəˈfeʃ.ən/|n.|職業；專業|medical profession^醫療行業^teaching profession^教職^legal profession^法律界",
+"👨‍🏫|Professor|/prəˈfes.ɚ/|n.|教授|university professor^大學教授^assistant professor^助理教授^history professor^歷史教授",
+"📈|Profit|/ˈprɑː.fɪt/|n.|利潤|make a profit^獲利^net profit^淨利^profit margin^利潤率",
+"📅|Program|/ˈproʊ.ɡræm/|n.|計畫；程式|training program^培訓計畫^computer program^電腦程式^exchange program^交換計畫",
+"🚧|Project|/ˈprɑː.dʒekt/|n.|專案；計畫|manage a project^管理專案^research project^研究計畫^project manager^專案經理",
+"🏡|Property|/ˈprɑː.pɚ.t̬i/|n.|財產；房地產|private property^私有財產^intellectual property^智慧財產權^commercial property^商業地產",
+"📑|Proposal|/prəˈpoʊ.zəl/|n.|提案|submit a proposal^提交提案^budget proposal^預算提案^review a proposal^審查提案",
+"🛡️|Protection|/prəˈtek.ʃən/|n.|保護|data protection^資料保護^environmental protection^環境保護^consumer protection^消費者保護",
+"🎯|Purpose|/ˈpɝː.pəs/|n.|目的|for this purpose^為了這個目的^main purpose^主要目的^serve a purpose^達到目的",
+"💎|Quality|/ˈkwɑː.lə.t̬i/|n.|品質|high quality^高品質^quality control^品質管制^poor quality^品質差",
+"❓|Question|/ˈkwes.tʃən/|n.|問題|ask a question^問問題^answer a question^回答問題^tough question^難題",
+"📊|Rate|/reɪt/|n.|比率；價格|interest rate^利率^exchange rate^匯率^hourly rate^時薪",
+"🧾|Receipt|/rɪˈsiːt/|n.|收據|keep the receipt^保留收據^original receipt^收據正本^receipt of payment^付款收據",
+"🏨|Reception|/rɪˈsep.ʃən/|n.|接待處；招待會|wedding reception^婚宴^reception desk^接待櫃台^warm reception^熱烈歡迎",
+"📝|Recommendation|/ˌrek.ə.menˈdeɪ.ʃən/|n.|推薦；建議|letter of recommendation^推薦信^make a recommendation^提出建議^on recommendation^經...推薦",
+"⏺️|Record|/ˈrek.ɚd/|n.|紀錄|break a record^打破紀錄^keep a record^保持紀錄^medical record^病歷",
+"💸|Refund|/ˈriː.fʌnd/|n.|退款|full refund^全額退款^request a refund^要求退款^non-refundable^不可退款",
+"⚖️|Regulation|/ˌreɡ.jəˈleɪ.ʃən/|n.|法規；規定|safety regulation^安全規定^follow regulations^遵守法規^new regulation^新法規",
+"🔗|Relation|/rɪˈleɪ.ʃən/|n.|關係|public relations^公共關係^in relation to^關於^international relations^國際關係",
+"📄|Report|/rɪˈpɔːrt/|n.|報告|annual report^年度報告^sales report^銷售報告^write a report^寫報告",
+"👔|Representative|/ˌrep.rɪˈzen.t̬ə.tɪv/|n.|代表|sales representative^業務代表^customer service representative^客服代表^legal representative^法定代理人",
+"📨|Request|/rɪˈkwest/|n.|請求；要求|make a request^提出請求^upon request^應要求^formal request^正式要求",
+"📋|Requirement|/rɪˈkwaɪr.mənt/|n.|要求；必要條件|meet requirements^符合要求^entry requirement^入學/入境條件^legal requirement^法律要求",
+"🔬|Research|/ˈriː.sɝːtʃ/|n.|研究|market research^市場調查^conduct research^進行研究^research team^研究團隊",
+"📅|Reservation|/ˌrez.ɚˈveɪ.ʃən/|n.|預約；保留|make a reservation^預約^confirm reservation^確認預約^cancel reservation^取消預約",
+"🛢️|Resource|/ˈriː.sɔːrs/|n.|資源|human resources^人力資源^natural resources^自然資源^limited resources^有限的資源",
+"🗣️|Response|/rɪˈspɑːns/|n.|回應；反應|quick response^快速回應^in response to^回應...^positive response^正面回應",
+"🏗️|Responsibility|/rɪˌspɑːn.səˈbɪl.ə.t̬i/|n.|責任|take responsibility^承擔責任^full responsibility^全部責任^legal responsibility^法律責任",
+"📝|Result|/rɪˈzʌlt/|n.|結果|test result^測試結果^end result^最終結果^as a result^因此",
+"👴|Retirement|/rɪˈtaɪr.mənt/|n.|退休|retirement plan^退休計畫^early retirement^提早退休^retirement age^退休年齡",
+"💰|Revenue|/ˈrev.ə.nuː/|n.|營收；歲入|tax revenue^稅收^annual revenue^年營收^generate revenue^創造營收",
+"🧐|Review|/rɪˈvjuː/|n.|審查；評論|performance review^績效考核^peer review^同儕審查^mixed reviews^毀譽參半的評論",
+"⚠️|Risk|/rɪsk/|n.|風險|high risk^高風險^take a risk^冒險^risk management^風險管理",
+"🎭|Role|/roʊl/|n.|角色；職責|play a role^扮演角色^key role^關鍵角色^leading role^主角",
+"📏|Rule|/ruːl/|n.|規則|follow the rules^遵守規則^safety rule^安全規則^break the rules^違反規則",
+"⛑️|Safety|/ˈseɪf.ti/|n.|安全|safety first^安全第一^safety standard^安全標準^health and safety^職業安全衛生",
+"💵|Salary|/ˈsæl.ɚ.i/|n.|薪水|annual salary^年薪^base salary^底薪^competitive salary^有競爭力的薪資",
+"🏷️|Sale|/seɪl/|n.|銷售；特賣|for sale^出售^on sale^特價中^sales figures^銷售數字",
+"🧪|Sample|/ˈsæm.pəl/|n.|樣品；樣本|free sample^免費樣品^blood sample^血液樣本^random sample^隨機樣本",
+"😊|Satisfaction|/ˌsæt.ɪsˈfæk.ʃən/|n.|滿意|customer satisfaction^顧客滿意度^job satisfaction^工作滿意度^express satisfaction^表示滿意",
+"📅|Schedule|/ˈskedʒ.uːl/|n.|行程表；時刻表|on schedule^準時^ahead of schedule^提前^tight schedule^緊湊的行程",
+"🔬|Science|/ˈsaɪ.əns/|n.|科學|computer science^電腦科學^social science^社會科學^modern science^現代科學",
+"🖥️|Screen|/skriːn/|n.|螢幕|touch screen^觸控螢幕^flat screen^平面螢幕^on screen^在螢幕上",
+"🔍|Search|/sɝːtʃ/|n.|搜尋|job search^求職^search engine^搜尋引擎^search warrant^搜索票",
+"🍂|Season|/ˈsiː.zən/|n.|季節|holiday season^假期旺季^peak season^旺季^rainy season^雨季",
+"🪑|Seat|/siːt/|n.|座位|take a seat^請坐^window seat^靠窗座位^aisle seat^靠走道座位",
+"🧩|Section|/ˈsek.ʃən/|n.|部分；區域|smoking section^吸菸區^business section^商業版^cross section^橫截面",
+"🔒|Security|/səˈkjʊr.ə.t̬i/|n.|安全；保全|security guard^警衛^security check^安檢^job security^工作保障",
+"🔢|Selection|/səˈlek.ʃən/|n.|選擇；精選|wide selection^多種選擇^random selection^隨機選擇^final selection^最終選擇",
+"🧑‍🏫|Seminar|/ˈsem.ə.nɑːr/|n.|研討會|attend a seminar^參加研討會^training seminar^培訓研討會^conduct a seminar^舉辦研討會",
+"📚|Series|/ˈsɪr.iːz/|n.|系列|series of events^一連串事件^TV series^電視影集^lecture series^系列講座",
+"💁|Service|/ˈsɝː.vɪs/|n.|服務|customer service^客戶服務^room service^客房服務^out of service^暫停服務",
+"⏱️|Session|/ˈseʃ.ən/|n.|會議；期間|training session^培訓課程^Q&A session^問答時間^morning session^上午場",
+"📈|Share|/ʃer/|n.|股份；份額|market share^市佔率^share price^股價^fair share^公平的份額",
+"⏰|Shift|/ʃɪft/|n.|輪班；轉變|night shift^夜班^shift work^輪班工作^paradigm shift^典範轉移",
+"🚢|Shipment|/ˈʃɪp.mənt/|n.|貨運；裝載|overseas shipment^海外貨運^track a shipment^追蹤貨物^ready for shipment^準備出貨",
+"📉|Shortage|/ˈʃɔːr.t̬ɪdʒ/|n.|短缺|water shortage^缺水^labor shortage^缺工^food shortage^糧食短缺",
+"✍️|Signature|/ˈsɪɡ.nə.tʃɚ/|n.|簽名|authorized signature^授權簽名^specimen signature^簽名樣式^collect signatures^收集簽名",
+"🏗️|Site|/saɪt/|n.|地點；網站|construction site^工地^web site^網站^on site^現場",
+"🛠️|Skill|/skɪl/|n.|技能|communication skill^溝通技巧^technical skill^技術能力^soft skill^軟實力",
+"💡|Solution|/səˈluː.ʃən/|n.|解決方案|find a solution^找到解決方案^practical solution^實際的解決方案^cost-effective solution^符合成本效益的方案",
+"💧|Source|/sɔːrs/|n.|來源|source of income^收入來源^reliable source^可靠的消息來源^open source^開源",
+"🌌|Space|/speɪs/|n.|空間|parking space^停車位^office space^辦公空間^personal space^個人空間",
+"🎤|Speech|/spiːtʃ/|n.|演講|give a speech^發表演講^acceptance speech^得獎感言^make a speech^致詞",
+"👥|Staff|/stæf/|n.|全體員工|medical staff^醫務人員^staff member^員工^short-staffed^人手不足",
+"📏|Standard|/ˈstæn.dɚd/|n.|標準|high standard^高標準^meet the standard^符合標準^safety standard^安全標準",
+"📄|Statement|/ˈsteɪt.mənt/|n.|聲明；報表|bank statement^銀行對帳單^official statement^正式聲明^financial statement^財務報表",
+"📊|Status|/ˈsteɪ.t̬əs/|n.|狀態；地位|current status^目前狀態^social status^社會地位^check status^檢查狀態",
+"📦|Stock|/stɑːk/|n.|庫存；股票|in stock^有現貨^out of stock^缺貨^stock market^股市",
+"🗄️|Storage|/ˈstɔːr.ɪdʒ/|n.|儲存|storage room^儲藏室^storage space^儲存空間^cold storage^冷藏",
+"🏪|Store|/stɔːr/|n.|商店|department store^百貨公司^chain store^連鎖店^grocery store^雜貨店",
+"♟️|Strategy|/ˈstræt̬.ə.dʒi/|n.|策略|marketing strategy^行銷策略^business strategy^商業策略^develop a strategy^制定策略",
+"🏗️|Structure|/ˈstrʌk.tʃɚ/|n.|結構|organizational structure^組織結構^fee structure^收費結構^complex structure^複雜的結構",
+"🏆|Success|/səkˈses/|n.|成功|key to success^成功關鍵^achieve success^獲得成功^huge success^巨大的成功",
+"💡|Suggestion|/səˈdʒes.tʃən/|n.|建議|make a suggestion^提出建議^helpful suggestion^有用的建議^open to suggestions^願意接受建議",
+"📦|Supply|/səˈplaɪ/|n.|供應；補給品|supply chain^供應鏈^office supplies^辦公用品^short supply^供應短缺",
+"🤝|Support|/səˈpɔːrt/|n.|支持；支援|technical support^技術支援^customer support^客戶支援^moral support^精神支持",
+"📋|Survey|/ˈsɝː.veɪ/|n.|調查|conduct a survey^進行調查^satisfaction survey^滿意度調查^survey results^調查結果",
+"🖥️|System|/ˈsɪs.təm/|n.|系統|operating system^作業系統^security system^保全系統^legal system^法律制度",
+"🎯|Target|/ˈtɑːr.ɡɪt/|n.|目標|target market^目標市場^sales target^銷售目標^meet the target^達成目標",
+"✅|Task|/tæsk/|n.|任務|daily task^日常任務^perform a task^執行任務^daunting task^艱鉅的任務",
+"🧾|Tax|/tæks/|n.|稅|income tax^所得稅^sales tax^營業稅^tax return^報稅單",
+"🤝|Team|/tiːm/|n.|團隊|team building^團隊建設^team member^團隊成員^management team^管理團隊",
+"💻|Technology|/tekˈnɑː.lə.dʒi/|n.|科技；技術|information technology^資訊科技^advanced technology^先進技術^cutting-edge technology^尖端科技",
+"⏳|Term|/tɝːm/|n.|條款；期限；術語|long-term^長期的^short-term^短期的^terms and conditions^條款與條件",
+"🧪|Test|/test/|n.|測試；考試|run a test^進行測試^blood test^驗血^pass the test^通過考試",
+"🎫|Ticket|/ˈtɪk.ɪt/|n.|票；罰單|buy a ticket^買票^parking ticket^違規停車罰單^round-trip ticket^來回票",
+"⏰|Time|/taɪm/|n.|時間|on time^準時^part-time^兼職^waste time^浪費時間",
+"🏷️|Title|/ˈtaɪ.t̬əl/|n.|標題；頭銜|job title^職稱^official title^正式頭銜^title deed^地契",
+"🛠️|Tool|/tuːl/|n.|工具|marketing tool^行銷工具^right tool^正確的工具^power tool^電動工具",
+"💬|Topic|/ˈtɑː.pɪk/|n.|主題|main topic^主要主題^current topic^當前話題^discuss a topic^討論主題",
+"🚌|Tour|/tʊr/|n.|旅遊；參觀|guided tour^導覽^factory tour^工廠參觀^go on a tour^去旅遊",
+"⚖️|Trade|/treɪd/|n.|貿易|international trade^國際貿易^fair trade^公平貿易^trade show^貿易展",
+"🏋️|Training|/ˈtreɪ.nɪŋ/|n.|訓練|training course^培訓課程^on-the-job training^在職訓練^staff training^員工培訓",
+"💳|Transaction|/trænˈzæk.ʃən/|n.|交易|secure transaction^安全交易^bank transaction^銀行交易^online transaction^線上交易",
+"🔄|Transfer|/ˈtræns.fɝː/|n.|轉移；調任；轉帳|bank transfer^銀行轉帳^file transfer^檔案傳輸^request a transfer^申請調職",
+"🚌|Transportation|/ˌtræn.spɔːrˈteɪ.ʃən/|n.|運輸；交通工具|public transportation^大眾運輸^mode of transportation^交通方式^transportation cost^運輸成本",
+"✈️|Travel|/ˈtræv.əl/|n.|旅行|business travel^商務旅行^travel agency^旅行社^travel expenses^差旅費",
+"📈|Trend|/trend/|n.|趨勢|market trend^市場趨勢^current trend^當前趨勢^upward trend^上升趨勢",
+"🎒|Trip|/trɪp/|n.|旅行|business trip^出差^day trip^一日遊^round trip^來回行程",
+"⌨️|Type|/taɪp/|n.|類型|type of business^商業類型^blood type^血型^prototype^原型",
+"📦|Unit|/ˈjuː.nɪt/|n.|單位；單元|storage unit^倉儲單位^production unit^生產單位^intensive care unit^加護病房",
+"🎓|University|/ˌjuː.nəˈvɝː.sə.t̬i/|n.|大學|attend university^上大學^university degree^大學學位^state university^州立大學",
+"🔄|Update|/ˈʌp.deɪt/|n.|更新；最新消息|software update^軟體更新^news update^最新新聞^provide an update^提供最新消息",
+"🔨|Use|/juːs/|n.|使用|make use of^利用^for personal use^供個人使用^easy to use^易於使用",
+"🏖️|Vacation|/veɪˈkeɪ.ʃən/|n.|假期|on vacation^度假中^take a vacation^休假^summer vacation^暑假",
+"💎|Value|/ˈvæl.juː/|n.|價值|market value^市場價值^good value^物超所值^added value^附加價值",
+"🎨|Variety|/vəˈraɪ.ə.t̬i/|n.|多樣化；種類|wide variety^種類繁多^variety of choices^多種選擇^garden variety^普通的種類",
+"🚗|Vehicle|/ˈviː.ə.kəl/|n.|車輛|motor vehicle^機動車輛^company vehicle^公務車^utility vehicle^多用途車輛",
+"🏪|Vendor|/ˈven.dɚ/|n.|供應商；攤販|street vendor^街頭攤販^preferred vendor^首選供應商^vendor list^供應商名單",
+"ℹ️|Version|/ˈvɝː.ʃən/|n.|版本|latest version^最新版本^final version^最終版本^trial version^試用版",
+"🎁|Compensate|/ˈkɑːm.pən.seɪt/|v.|補償；賠償|compensate for loss^補償損失^compensate employees^補償員工^handsomely compensated^獲得優渥報酬",
+"🏎️|Compete|/kəmˈpiːt/|v.|競爭|compete with^與...競爭^compete for market share^爭奪市佔率^hard to compete^難以競爭",
+"🎓|Competent|/ˈkɑːm.pə.tənt/|adj.|有能力的；勝任的|competent employee^有能力的員工^highly competent^非常勝任^competent authority^主管機關",
+"😠|Complaint|/kəmˈpleɪnt/|n.|抱怨；投訴|file a complaint^提出投訴^customer complaint^客訴^handle complaints^處理抱怨",
+"✅|Complete|/kəmˈpliːt/|v.|完成；完整的|complete the form^填寫表格^complete a project^完成專案^complete guide^完整指南",
+"🧩|Complex|/ˈkɑːm.pleks/|adj.|複雜的|complex system^複雜的系統^complex issue^複雜的議題^office complex^辦公大樓群",
+"🥂|Complimentary|/ˌkɑːm.pləˈmen.t̬ɚ.i/|adj.|免費的；讚美的|complimentary breakfast^免費早餐^complimentary ticket^公關票^complimentary remarks^讚美之詞",
+"📜|Comply|/kəmˈplaɪ/|v.|遵守；順從|comply with regulations^遵守法規^fail to comply^未能遵守^strict compliance^嚴格遵守",
+"⚙️|Component|/kəmˈpoʊ.nənt/|n.|零件；成分|key component^關鍵零件^electronic component^電子零件^essential component^必要成分",
+"✍️|Compose|/kəmˈpoʊz/|v.|組成；撰寫|compose an email^撰寫郵件^composed of^由...組成^compose music^作曲",
+"🌐|Comprehensive|/ˌkɑːm.prəˈhen.sɪv/|adj.|全面的；詳盡的|comprehensive review^全面審查^comprehensive insurance^綜合保險^comprehensive guide^詳盡指南",
+"🤝|Compromise|/ˈkɑːm.prə.maɪz/|n.|妥協；讓步|reach a compromise^達成妥協^make a compromise^做出讓步^refuse to compromise^拒絕妥協",
+"🧘|Concentrate|/ˈkɑːn.sən.treɪt/|v.|專注；集中|concentrate on^專注於^concentrate efforts^集中精力^hard to concentrate^難以專注",
+"😟|Concern|/kənˈsɝːn/|n.|擔憂；關於|concern about^對...的擔憂^express concern^表達關切^major concern^主要的隱憂",
+"🎻|Concert|/ˈkɑːn.sɚt/|n.|音樂會|live concert^現場音樂會^concert ticket^演唱會門票^benefit concert^慈善音樂會",
+"🔚|Conclude|/kənˈkluːd/|v.|做出結論；結束|conclude a meeting^結束會議^conclude a deal^達成交易^conclude that^得出結論...",
+"📝|Condition|/kənˈdɪʃ.ən/|n.|狀況；條件|terms and conditions^條款與條件^working conditions^工作環境^in good condition^狀況良好",
+"🎼|Conduct|/kənˈdʌkt/|v.|執行；指揮|conduct a survey^進行調查^conduct research^進行研究^code of conduct^行為準則",
+"🎤|Conference|/ˈkɑːn.fɚ.əns/|n.|會議|press conference^記者會^video conference^視訊會議^annual conference^年會",
+"😎|Confident|/ˈkɑːn.fə.dənt/|adj.|有信心的|confident in^對...有信心^feel confident^感到自信^self-confident^自信的",
+"🤐|Confidential|/ˌkɑːn.fəˈden.ʃəl/|adj.|機密的|confidential information^機密資訊^strictly confidential^嚴格保密^keep confidential^保密",
+"✅|Confirm|/kənˈfɝːm/|v.|確認|confirm the reservation^確認預約^confirm details^確認細節^waiting to confirm^等待確認",
+"⚔️|Conflict|/ˈkɑːn.flɪkt/|n.|衝突|conflict of interest^利益衝突^resolve a conflict^解決衝突^schedule conflict^行程衝突",
+"😵|Confuse|/kənˈfjuːz/|v.|使困惑；混淆|confuse A with B^把A和B搞混^confusing instruction^令人困惑的指示^easily confused^容易混淆",
+"🎉|Congratulate|/kənˈɡrætʃ.ə.leɪt/|v.|祝賀|congratulate him on^祝賀他的...^congratulate the winner^恭喜贏家^warmly congratulate^熱烈祝賀",
+"🔌|Connect|/kəˈnekt/|v.|連接；聯繫|connect to the internet^連上網路^connecting flight^轉機航班^stay connected^保持聯繫",
+"💥|Consequence|/ˈkɑːn.sə.kwəns/|n.|後果|serious consequence^嚴重的後果^face the consequences^承擔後果^as a consequence^因此",
+"🤔|Consider|/kənˈsɪd.ɚ/|v.|考慮|consider doing^考慮做...^carefully consider^仔細考慮^consider a proposal^考慮提案",
+"🐘|Considerable|/kənˈsɪd.ɚ.ə.bəl/|adj.|相當大的；可觀的|considerable amount^相當大的數量^considerable effort^巨大的努力^considerable influence^相當大的影響力",
+"🧱|Consist|/kənˈsɪst/|v.|組成|consist of^由...組成^mainly consist of^主要由...組成^consist in^在於...",
+"📏|Consistent|/kənˈsɪs.tənt/|adj.|一致的；始終如一的|consistent performance^穩定的表現^consistent with^與...一致^remain consistent^保持一致",
+"🔄|Constant|/ˈkɑːn.stənt/|adj.|持續的；不斷的|constant change^不斷的變化^constant reminder^不斷的提醒^constant contact^持續聯繫",
+"🏗️|Construct|/kənˈstrʌkt/|v.|建造|construct a building^建造大樓^under construction^施工中^construct a theory^建構理論",
+"👨‍⚕️|Consult|/kənˈsʌlt/|v.|諮詢；商量|consult a doctor^諮詢醫生^consult with experts^與專家商討^consult a lawyer^諮詢律師",
+"🔥|Consume|/kənˈsuːm/|v.|消耗；消費；吃喝|consume energy^消耗能源^time-consuming^耗時的^consume alcohol^飲酒",
+"🛒|Consumer|/kənˈsuː.mɚ/|n.|消費者|consumer confidence^消費者信心^consumer protection^消費者保護^consumer goods^消費品",
+"📱|Contact|/ˈkɑːn.tækt/|n.|聯絡|contact information^聯絡資訊^keep in contact^保持聯絡^emergency contact^緊急聯絡人",
+"📦|Contain|/kənˈteɪn/|v.|包含；容納|contain alcohol^含有酒精^contain information^包含資訊^container^容器",
+"🥡|Container|/kənˈteɪ.nɚ/|n.|容器；貨櫃|shipping container^海運貨櫃^plastic container^塑膠容器^airtight container^密封容器",
+"📖|Content|/ˈkɑːn.tent/|n.|內容；目錄|table of contents^目錄^web content^網頁內容^high quality content^高品質內容",
+"🏆|Contest|/ˈkɑːn.test/|n.|比賽；競賽|enter a contest^參加比賽^speech contest^演講比賽^contest winner^比賽優勝者",
+"⏩|Continue|/kənˈtɪn.juː/|v.|繼續|continue to grow^繼續成長^continue working^繼續工作^discontinue^停止/中斷",
+"👷|Contractor|/ˈkɑːn.træk.tɚ/|n.|承包商|general contractor^總承包商^independent contractor^獨立承包商^government contractor^政府承包商",
+"🎮|Control|/kənˈtroʊl/|n.|控制|under control^在控制中^quality control^品質管制^remote control^遙控器",
+"🏪|Convenient|/kənˈviː.ni.ənt/|adj.|方便的|convenient location^方便的地點^convenient time^方便的時間^convenient store^便利商店",
+"🎤|Convention|/kənˈven.ʃən/|n.|大會；慣例|annual convention^年度大會^convention center^會議中心^follow convention^遵循慣例",
+"🔄|Convert|/kənˈvɝːt/|v.|轉換；兌換|convert into^轉換成...^convert currency^兌換貨幣^convert files^轉檔",
+"🗣️|Convince|/kənˈvɪns/|v.|說服|convince him^說服他^hard to convince^難以說服^convincing argument^有說服力的論點",
+"🍳|Cook|/kʊk/|v.|煮；廚師|cook a meal^做飯^chief cook^主廚^cook the books^作假帳",
+"😎|Cool|/kuːl/|adj.|涼爽的；冷靜的|keep cool^保持冷靜^cool down^冷靜下來/降溫^lose one's cool^失去理智",
+"🤝|Cooperate|/koʊˈɑː.pə.reɪt/|v.|合作|cooperate with^與...合作^refuse to cooperate^拒絕合作^fully cooperate^全力配合",
+"🔄|Coordinate|/koʊˈɔːr.dn.eɪt/|v.|協調|coordinate efforts^協調工作^coordinate schedule^協調行程^project coordinator^專案協調員",
+"📄|Copy|/ˈkɑː.pi/|n.|副本；複製|hard copy^紙本^make a copy^影印^carbon copy^副本(CC)",
+"📐|Corner|/ˈkɔːr.nɚ/|n.|角落|around the corner^即將來臨/在轉角^cut corners^偷工減料^corner office^主管辦公室",
+"🏢|Corporate|/ˈkɔːr.pɚ.ət/|adj.|企業的；公司的|corporate culture^企業文化^corporate image^企業形象^corporate event^企業活動",
+"✔️|Correct|/kəˈrekt/|adj.|正確的；糾正|correct answer^正確答案^correct a mistake^糾正錯誤^politically correct^政治正確",
+"💸|Cost|/kɑːst/|n.|成本；花費|production cost^生產成本^at all costs^不惜一切代價^cut costs^削減成本",
+"🎭|Costume|/ˈkɑː.stuːm/|n.|服裝(戲服)|costume party^變裝派對^traditional costume^傳統服裝^costume designer^服裝設計師",
+"🏛️|Council|/ˈkaʊn.səl/|n.|議會；委員會|city council^市議會^student council^學生會^council member^議員",
+"🗣️|Counsel|/ˈkaʊn.səl/|v.|諮詢；法律顧問|seek counsel^尋求諮詢^legal counsel^法律顧問^counseling service^諮詢服務",
+"🔢|Count|/kaʊnt/|v.|計算；重要|count on me^依靠我^count down^倒數^every vote counts^每一票都很重要",
+"💁|Counter|/ˈkaʊn.t̬ɚ/|n.|櫃台|check-in counter^報到櫃台^kitchen counter^流理台^under the counter^私下交易",
+"🏳️|Country|/ˈkʌn.tri/|n.|國家；鄉村|developing country^開發中國家^host country^主辦國^cross country^越野",
+"👫|Couple|/ˈkʌp.əl/|n.|一對；幾個|a couple of days^幾天^married couple^已婚夫婦^couple with^加上...",
+"🎫|Coupon|/ˈkuː.pɑːn/|n.|優惠券|discount coupon^折價券^redeem a coupon^兌換優惠券^coupon code^優惠碼",
+"🚚|Courier|/ˈkʊr.i.er/|n.|快遞；信差|courier service^快遞服務^send by courier^用快遞寄送^bike courier^單車快遞",
+"🎓|Course|/kɔːrs/|n.|課程；路線；一道菜|training course^培訓課程^main course^主菜^change course^改變航向",
+"☂️|Cover|/ˈkʌv.ɚ/|v.|覆蓋；報導；支付|cover the cost^支付費用^media cover^媒體報導^cover letter^求職信",
+"🛡️|Coverage|/ˈkʌv.ɚ.ɪdʒ/|n.|覆蓋範圍；保險|insurance coverage^保險範圍^media coverage^媒體報導範圍^full coverage^全險",
+"🎨|Create|/kriˈeɪt/|v.|創造|create a new file^建立新檔案^create jobs^創造就業機會^create a problem^製造問題",
+"💡|Creative|/kriˈeɪ.t̬ɪv/|adj.|有創意的|creative idea^有創意的點子^creative director^創意總監^get creative^發揮創意",
+"💳|Credit|/ˈkred.ɪt/|n.|信用；學分|credit card^信用卡^store credit^商店購物金^give credit^給予讚揚",
+"🚢|Crew|/kruː/|n.|全體人員；組|cabin crew^機組人員^camera crew^攝影組^construction crew^施工隊",
+"🚨|Crisis|/ˈkraɪ.sɪs/|n.|危機|financial crisis^金融危機^energy crisis^能源危機^midlife crisis^中年危機",
+"🔑|Critical|/ˈkrɪt̬.ɪ.kəl/|adj.|關鍵的；批評的|critical thinking^批判性思考^critical factor^關鍵因素^critical condition^危急狀況",
+"👎|Criticize|/ˈkrɪt̬.ɪ.saɪz/|v.|批評|criticize the policy^批評政策^constructive criticism^建設性批評^rarely criticize^很少批評",
+"🚦|Cross|/krɑːs/|v.|越過；交叉|cross the street^過馬路^fingers crossed^祈求好運^cross-check^交叉比對",
+"👥|Crowd|/kraʊd/|n.|人群|large crowd^一大群人^draw a crowd^吸引人群^crowd control^人群管制",
+"🚌|Crowded|/ˈkraʊ.dɪd/|adj.|擁擠的|crowded bus^擁擠的公車^overcrowded^過度擁擠^crowded market^擁擠的市場",
+"🗝️|Crucial|/ˈkruː.ʃəl/|adj.|決定性的；至關重要的|crucial decision^關鍵決定^play a crucial role^扮演關鍵角色^crucial moment^關鍵時刻",
+"⛩️|Culture|/ˈkʌl.tʃɚ/|n.|文化|corporate culture^企業文化^pop culture^流行文化^cultural difference^文化差異",
+"🧐|Curious|/ˈkjʊr.i.əs/|adj.|好奇的|curious about^對...感到好奇^just curious^只是好奇^curious to know^很想知道",
+"⚡|Current|/ˈkɝː.ənt/|adj.|目前的；電流|current trend^當前趨勢^current job^目前工作^current account^經常帳",
+"↩️|Curve|/kɝːv/|n.|曲線|learning curve^學習曲線^ahead of the curve^領先趨勢^sharp curve^急彎",
+"🛃|Custom|/ˈkʌs.təm/|n.|習俗；海關|customs duty^關稅^clear customs^通關^local custom^當地習俗",
+"✂️|Cut|/kʌt/|v.|切割；削減|cut costs^削減成本^pay cut^減薪^cut corners^偷工減料/走捷徑",
+"🚴|Cycle|/ˈsaɪ.kəl/|n.|週期；循環|business cycle^商業週期^life cycle^生命週期^break the cycle^打破循環",
+"📅|Daily|/ˈdeɪ.li/|adj.|每日的|daily routine^例行公事^daily rate^日費率^daily life^日常生活",
+"💥|Damage|/ˈdæm.ɪdʒ/|n.|損害|cause damage^造成損害^water damage^水害^badly damaged^嚴重受損",
+"⚠️|Danger|/ˈdeɪn.dʒɚ/|n.|危險|in danger^處於危險中^out of danger^脫離危險^danger zone^危險區域",
+"☣️|Dangerous|/ˈdeɪn.dʒɚ.əs/|adj.|危險的|dangerous goods^危險物品^highly dangerous^極度危險^dangerous situation^危險情況",
+"📊|Data|/ˈdeɪ.t̬ə/|n.|數據|data entry^資料輸入^data analysis^數據分析^big data^大數據",
+"📅|Date|/deɪt/|n.|日期；約會|expiration date^有效期限^delivery date^送貨日期^out of date^過期",
+"☀️|Day|/deɪ/|n.|天|business day^工作日^day off^休假^make my day^讓我開心",
+"🤝|Deal|/diːl/|n.|交易；處理|deal with^處理^close a deal^成交^big deal^大不了的事",
+"🏪|Dealer|/ˈdiː.lɚ/|n.|經銷商|car dealer^汽車經銷商^authorized dealer^授權經銷商^dealer network^經銷網絡",
+"🗣️|Debate|/dɪˈbeɪt/|n.|辯論|public debate^公開辯論^heated debate^激烈的辯論^debate over^針對...辯論",
+"💸|Debt|/det/|n.|債務|in debt^負債^pay off debt^還清債務^bad debt^呆帳",
+"🔟|Decade|/ˈdek.eɪd/|n.|十年|over a decade^超過十年^past decade^過去十年^decade long^長達十年",
+"🤔|Decide|/dɪˈsaɪd/|v.|決定|decide to^決定去...^cannot decide^無法決定^decide against^決定不...",
+"🔨|Decision|/dɪˈsɪʒ.ən/|n.|決定|make a decision^做出決定^final decision^最終決定^tough decision^艱難的決定",
+"🚢|Deck|/dek/|n.|甲板；層|observation deck^觀景台^flight deck^駕駛艙^on deck^在甲板上",
+"📢|Declare|/dɪˈkler/|v.|宣布；申報|declare goods^申報貨物(海關)^declare bankruptcy^宣告破產^declare war^宣戰",
+"📉|Decline|/dɪˈklaɪn/|v.|下降；婉拒|decline an offer^婉拒提議^decline in sales^銷售下滑^sharp decline^急遽下降",
+"🔻|Decrease|/dɪˈkriːs/|v.|減少|decrease the risk^降低風險^decrease in value^價值減少^gradually decrease^逐漸減少",
+"➖|Deduct|/dɪˈdʌkt/|v.|扣除；減去|deduct tax^扣稅^deduct from salary^從薪水扣除^tax deductible^可抵稅的",
+"🌊|Deep|/diːp/|adj.|深的|deep understanding^深刻的理解^deep in debt^負債累累^in deep water^陷入困境",
+"🛠️|Defect|/ˈdiː.fekt/|n.|缺陷；瑕疵|manufacturing defect^製造瑕疵^birth defect^先天缺陷^minor defect^小瑕疵",
+"🛡️|Defend|/dɪˈfend/|v.|防衛；辯護|defend against^防禦...^defend a lawsuit^為訴訟辯護^defend a title^衛冕頭銜",
+"💸|Deficit|/ˈdef.ə.sɪt/|n.|赤字；虧損|budget deficit^預算赤字^trade deficit^貿易逆差^reduce the deficit^減少赤字",
+"📖|Define|/dɪˈfaɪn/|v.|定義；界定|clearly define^清楚定義^define the problem^界定問題^hard to define^難以定義",
+"✅|Definite|/ˈdef.ən.ət/|adj.|明確的；肯定的|definite answer^肯定的回答^definite plan^明確的計畫^for definite^確定地",
+"🎓|Degree|/dɪˈɡriː/|n.|學位；程度；度數|master's degree^碩士學位^high degree^高度...^30 degrees^30度",
+"⏳|Delay|/dɪˈleɪ/|v.|延遲；耽擱|flight delay^班機延誤^without delay^立即^delay payment^延遲付款",
+"🕴️|Delegate|/ˈdel.ə.ɡət/|v.|委派；代表|delegate tasks^分派任務^delegate authority^下放權力^trade delegate^貿易代表",
+"🗑️|Delete|/dɪˈliːt/|v.|刪除|delete a file^刪除檔案^accidentally delete^不小心刪除^delete button^刪除鍵",
+"😋|Delicious|/dɪˈlɪʃ.əs/|adj.|美味的|delicious food^美食^look delicious^看起來很好吃^taste delicious^嚐起來很美味",
+"😃|Delight|/dɪˈlaɪt/|n.|愉快；樂事|take delight in^以...為樂^to my delight^令我高興的是^pure delight^純粹的快樂",
+"🗣️|Demand|/dɪˈmænd/|n.|需求；要求|meet the demand^滿足需求^in high demand^需求量大^demand for^對...的需求",
+"😤|Demanding|/dɪˈmæn.dɪŋ/|adj.|要求高的；費力的|demanding job^費力的工作^demanding boss^苛刻的老闆^physically demanding^體力消耗大的",
+"👨‍🏫|Demonstrate|/ˈdem.ən.streɪt/|v.|示範；證明；示威|demonstrate how to^示範如何...^clearly demonstrate^清楚證明^demonstrate against^示威反對...",
+"🙅|Deny|/dɪˈnaɪ/|v.|否認；拒絕|deny access^拒絕存取^deny a request^拒絕請求^deny the allegation^否認指控",
+"🔗|Depend|/dɪˈpend/|v.|依賴；視...而定|depend on^取決於/依賴^it depends^看情況^heavily depend^過度依賴",
+"🤝|Dependable|/dɪˈpen.də.bəl/|adj.|可靠的|dependable car^可靠的車^dependable service^可靠的服務^dependable source^可靠的消息來源",
+"🏦|Deposit|/dɪˈpɑː.zɪt/|n.|存款；押金|make a deposit^存款^security deposit^保證金/押金^direct deposit^直接匯款",
+"😞|Depression|/dɪˈpreʃ.ən/|n.|憂鬱；蕭條|economic depression^經濟蕭條^suffer from depression^患有憂鬱症^great depression^經濟大恐慌",
+"📏|Depth|/depθ/|n.|深度|in depth^深入地^depth of the ocean^海洋深度^out of my depth^超出我的能力範圍",
+"🧪|Derive|/dɪˈraɪv/|v.|源自；獲得|derive from^源自於...^derive benefit^獲得利益^word derived from^源自...的單字",
+"🎨|Design|/dɪˈzaɪn/|n.|設計|interior design^室內設計^graphic design^平面設計^by design^故意的",
+"👉|Designate|/ˈdez.ɪɡ.neɪt/|v.|指定；指派|designated driver^指定駕駛^designated area^指定區域^designate a successor^指定繼承人",
+"❤️|Desire|/dɪˈzaɪr/|n.|渴望；慾望|desire to learn^學習的渴望^strong desire^強烈的慾望^express a desire^表達意願",
+"🖥️|Desk|/desk/|n.|書桌；櫃台|front desk^前台^help desk^服務台^information desk^詢問處",
+"😩|Desperate|/ˈdes.pɚ.ət/|adj.|絕望的；極度渴望的|desperate for^極度渴望...^desperate attempt^孤注一擲的嘗試^desperate situation^絕望的情況",
+"🍰|Dessert|/dɪˈzɝːt/|n.|甜點|have dessert^吃甜點^dessert menu^甜點菜單^make dessert^做甜點",
+"📍|Destination|/ˌdes.təˈneɪ.ʃən/|n.|目的地|final destination^終點站^tourist destination^旅遊景點^reach destination^抵達目的地",
+"💥|Destroy|/dɪˈstrɔɪ/|v.|破壞；摧毀|destroy evidence^銷毀證據^completely destroy^完全摧毀^destroy reputation^毀壞名聲",
+"🔍|Detail|/ˈdiː.teɪl/|n.|細節|in detail^詳細地^attention to detail^注重細節^minor detail^微小的細節",
+"📝|Detailed|/ˈdiː.teɪld/|adj.|詳細的|detailed report^詳細報告^detailed instruction^詳細指示^detailed plan^詳盡計畫",
+"📡|Detect|/dɪˈtekt/|v.|偵測；發現|detect a problem^發現問題^smoke detector^煙霧偵測器^hard to detect^難以偵測",
+"📉|Deteriorate|/dɪˈtɪr.i.ə.reɪt/|v.|惡化|condition deteriorate^狀況惡化^rapidly deteriorate^急速惡化^health deteriorated^健康惡化",
+"🔨|Determine|/dɪˈtɝː.mɪn/|v.|決定；查明|determine the cause^查明原因^hard to determine^難以判定^determined to^下定決心",
+"🏗️|Develop|/dɪˈvel.əp/|v.|發展；開發|develop a product^開發產品^develop a skill^培養技能^develop a plan^制定計畫",
+"📈|Development|/dɪˈvel.əp.mənt/|n.|發展；開發|research and development^研發(R&D)^sustainable development^永續發展^under development^開發中",
+"📱|Device|/dɪˈvaɪs/|n.|裝置；設備|mobile device^行動裝置^electronic device^電子設備^safety device^安全裝置",
+"🧠|Devise|/dɪˈvaɪz/|v.|設計；想出|devise a plan^想出計畫^devise a method^設計方法^cleverly devised^巧妙設計的",
+"🩺|Diagnose|/ˌdaɪ.əɡˈnoʊz/|v.|診斷|diagnose with^被診斷出...^diagnose a problem^診斷問題^hard to diagnose^難以診斷",
+"📊|Diagram|/ˈdaɪ.ə.ɡræm/|n.|圖表；示意圖|draw a diagram^畫示意圖^wiring diagram^配線圖^flow diagram^流程圖",
+"📞|Dial|/daɪəl/|v.|撥號|dial a number^撥號^dial extension^撥分機^speed dial^快速撥號",
+"🗣️|Dialogue|/ˈdaɪ.ə.lɑːɡ/|n.|對話|constructive dialogue^建設性對話^open a dialogue^展開對話^meaningful dialogue^有意義的對話",
+"🥗|Diet|/ˈdaɪ.ət/|n.|飲食；節食|balanced diet^均衡飲食^go on a diet^節食^healthy diet^健康飲食",
+"⚖️|Differ|/ˈdɪf.ɚ/|v.|不同|differ from^與...不同^opinions differ^意見分歧^greatly differ^差異巨大",
+"📏|Difference|/ˈdɪf.ɚ.əns/|n.|差異|make a difference^產生影響/改善^big difference^大差別^tell the difference^分辨差異",
+"🤔|Different|/ˈdɪf.ɚ.ənt/|adj.|不同的|different from^與...不同^totally different^完全不同^try something different^嘗試新事物",
+"😓|Difficult|/ˈdɪf.ə.kəlt/|adj.|困難的|difficult task^艱鉅的任務^difficult customer^奧客^find it difficult^覺得很難",
+"💻|Digital|/ˈdɪdʒ.ə.t̬əl/|adj.|數位的|digital camera^數位相機^digital marketing^數位行銷^digital signature^數位簽名",
+"👑|Dignity|/ˈdɪɡ.nə.t̬i/|n.|尊嚴|loss of dignity^失去尊嚴^treat with dignity^有尊嚴地對待^die with dignity^有尊嚴地死去",
+"🐝|Diligent|/ˈdɪl.ə.dʒənt/|adj.|勤勉的|diligent worker^勤奮的員工^diligent effort^不懈的努力^be diligent^勤勉",
+"📐|Dimension|/ˌdaɪˈmen.ʃən/|n.|尺寸；維度|exact dimensions^確切尺寸^three dimensions^三維(3D)^new dimension^新層面",
+"📉|Diminish|/dɪˈmɪn.ɪʃ/|v.|減少；削弱|diminish the importance^削弱重要性^returns diminish^收益遞減^rapidly diminish^迅速減少",
+"🍽️|Dinner|/ˈdɪn.ɚ/|n.|晚餐|dinner party^晚宴^gala dinner^慶功晚宴^have dinner^吃晚餐",
+"👉|Direct|/dɪˈrekt/|adj.|直接的；指揮|direct flight^直飛航班^direct contact^直接聯繫^direct traffic^指揮交通",
+"🧭|Direction|/dɪˈrek.ʃən/|n.|方向；指導|follow directions^遵守指示^wrong direction^錯誤方向^under the direction of^在...指導下",
+"🎯|Directly|/dɪˈrekt.li/|adv.|直接地|report directly to^直接向...匯報^deal directly with^直接處理^go directly^直達",
+"📒|Directory|/dɪˈrek.tɚ.i/|n.|目錄；通訊錄|telephone directory^電話簿^company directory^公司通訊錄^file directory^檔案目錄",
+"🧹|Dirt|/dɝːt/|n.|污垢；泥土|remove dirt^清除污垢^covered in dirt^沾滿泥土^dirt road^泥土路",
+"♿|Disability|/ˌdɪs.əˈbɪl.ə.t̬i/|n.|殘疾；失能|physical disability^身體殘疾^learning disability^學習障礙^disability insurance^失能保險",
+"🚫|Disabled|/dɪsˈeɪ.bəld/|adj.|殘障的；失效的|disabled parking^殘障車位^disabled person^身心障礙者^permanently disabled^永久殘疾",
+"📉|Disadvantage|/ˌdɪs.ədˈvæn.t̬ɪdʒ/|n.|缺點；劣勢|major disadvantage^主要缺點^at a disadvantage^處於劣勢^disadvantage of^...的壞處",
+"🙅|Disagree|/ˌdɪs.əˈɡriː/|v.|不同意|disagree with^不同意...^strongly disagree^強烈反對^agree to disagree^同意保留歧見",
+"💨|Disappear|/ˌdɪs.əˈpɪr/|v.|消失|disappear completely^完全消失^mysteriously disappear^神秘消失^cause to disappear^使消失",
+"😞|Disappoint|/ˌdɪs.əˈpɔɪnt/|v.|使失望|disappoint customers^讓顧客失望^won't disappoint^不會讓你失望^deeply disappointed^深感失望",
+"🌪️|Disaster|/dɪˈzæs.tɚ/|n.|災難|natural disaster^天災^total disaster^徹底的失敗^recipe for disaster^災難的禍根",
+"🗑️|Discard|/dɪˈskɑːrd/|v.|丟棄|discard waste^丟棄廢棄物^discard old files^丟棄舊檔案^please discard^請丟棄",
+"⚡|Discharge|/dɪsˈtʃɑːrdʒ/|v.|排放；出院；履行|hospital discharge^出院^discharge duty^履行職責^discharge water^排水",
+"📏|Discipline|/ˈdɪs.ə.plɪn/|n.|紀律；學科|maintain discipline^維持紀律^self-discipline^自律^academic discipline^學術領域",
+"🤐|Disclose|/dɪˈskloʊz/|v.|揭露；公開|disclose information^揭露資訊^fail to disclose^未公開^fully disclose^完全揭露",
+"🏷️|Discount|/ˈdɪs.kaʊnt/|n.|折扣|get a discount^獲得折扣^employee discount^員工折扣^volume discount^大量購買折扣",
+"🛑|Discourage|/dɪˈskɝː.ɪdʒ/|v.|勸阻；使氣餒|discourage from^勸阻...^feel discouraged^感到氣餒^strongly discourage^強烈不建議",
+"🔭|Discover|/dɪˈskʌv.ɚ/|v.|發現|discover a cure^發現療法^discover new markets^開發新市場^accidentally discover^意外發現",
+"⚖️|Discrepancy|/dɪˈskrep.ən.si/|n.|不符；差異|price discrepancy^價格差異^inventory discrepancy^庫存不符^find a discrepancy^發現差異",
+"🗣️|Discuss|/dɪˈskʌs/|v.|討論|discuss the issue^討論議題^discuss with^與...討論^briefly discuss^簡短討論",
+"💬|Discussion|/dɪˈskʌʃ.ən/|n.|討論|under discussion^討論中^panel discussion^小組討論^lively discussion^熱烈的討論",
+"🦠|Disease|/dɪˈziːz/|n.|疾病|infectious disease^傳染病^prevent disease^預防疾病^heart disease^心臟病",
+"🍽️|Dish|/dɪʃ/|n.|盤子；菜餚|main dish^主菜^wash the dishes^洗碗^signature dish^招牌菜",
+"💾|Disk|/dɪsk/|n.|磁碟；圓盤|hard disk^硬碟^disk space^磁碟空間^floppy disk^磁片",
+"👋|Dismiss|/dɪˈsmɪs/|v.|解雇；駁回；不予理會|dismiss an employee^解雇員工^dismiss the idea^駁回想法^class dismissed^下課",
+"😵|Disorder|/dɪˈsɔːr.dɚ/|n.|混亂；失調|eating disorder^飲食失調^public disorder^公共騷亂^mental disorder^精神障礙",
+"🖥️|Display|/dɪˈspleɪ/|v.|展示；顯示|on display^展示中^window display^櫥窗展示^display screen^顯示螢幕",
+"🥤|Disposable|/dɪˈspoʊ.zə.bəl/|adj.|用完即丟的；可支配的|disposable income^可支配收入^disposable cup^免洗杯^disposable razor^拋棄式刮鬍刀",
+"🗑️|Dispose|/dɪˈspoʊz/|v.|處置；丟棄|dispose of^處理/丟棄^properly dispose^妥善處理^dispose of waste^處理廢棄物",
+"⚔️|Dispute|/dɪˈspjuːt/|n.|爭議；糾紛|settle a dispute^解決糾紛^labor dispute^勞資糾紛^contract dispute^合約爭議",
+"🚧|Disrupt|/dɪsˈrʌpt/|v.|中斷；擾亂|disrupt service^中斷服務^disrupt traffic^擾亂交通^severely disrupt^嚴重擾亂",
+"😤|Dissatisfied|/ˌdɪsˈsæt̬.əs.faɪd/|adj.|不滿意的|dissatisfied with^對...不滿意^dissatisfied customer^不滿的顧客^growing dissatisfied^越來越不滿",
+"📏|Distance|/ˈdɪs.təns/|n.|距離|walking distance^步行距離^keep distance^保持距離^long distance^長途",
+"🔭|Distant|/ˈdɪs.tənt/|adj.|遙遠的；冷淡的|distant future^遙遠的未來^distant relative^遠親^remain distant^保持疏遠",
+"🌟|Distinct|/dɪˈstɪŋkt/|adj.|明顯的；獨特的|distinct advantage^明顯的優勢^distinct possibility^極大的可能性^distinct flavor^獨特的風味",
+"🔍|Distinguish|/dɪˈstɪŋ.ɡwɪʃ/|v.|區分；辨別|distinguish between^區分...^hard to distinguish^難以分辨^distinguish oneself^使自己出類拔萃",
+"😵|Distract|/dɪˈstrækt/|v.|使分心|distract driver^使駕駛分心^get distracted^分心^distract attention^轉移注意力",
+"🚚|Distribute|/dɪˈstrɪb.juːt/|v.|分發；分配|distribute flyers^發傳單^distribute profits^分配利潤^evenly distribute^平均分配",
+"📦|Distribution|/ˌdɪs.trɪˈbjuː.ʃən/|n.|分發；配銷|distribution channel^配銷管道^distribution center^物流中心^income distribution^所得分配",
+"🏙️|District|/ˈdɪs.trɪkt/|n.|區域；行政區|business district^商業區^financial district^金融區^school district^學區",
+
 ];
 
-        // 安全解析資料庫
-        let DB = [];
-        try {
-            DB = RAW_DATA.map(line => {
+        // --- 2. 核心變數與初始化 ---
+        let cards = [];
+        let currentCard = null;
+        let learnedCount = 0;
+        let isFlipped = false;
+
+        // 確保 DOM 載入後執行
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                parseData();
+                loadProgress();
+                updateUI();
+                nextCard();
+            } catch(e) {
+                document.getElementById('error-log').innerText = "啟動失敗: " + e.message;
+                document.getElementById('error-log').style.display = 'block';
+            }
+        });
+
+        // --- 3. 資料解析 (防呆) ---
+        function parseData() {
+            cards = RAW_DATA.map(line => {
                 const p = line.split('|');
-                if(p.length < 5) return null; // 格式錯誤就跳過
-                const sents = p[4].split('^');
-                let formattedSents = [];
-                for(let i=0; i<sents.length; i+=2) {
-                    if(sents[i+1]) formattedSents.push({ en: sents[i], cn: sents[i+1] });
+                if(p.length < 5) return null;
+                // 解析例句
+                const sentsRaw = p[5] ? p[5].split('^') : [];
+                let sents = [];
+                for(let i=0; i<sentsRaw.length; i+=2) {
+                    if(sentsRaw[i+1]) sents.push({en: sentsRaw[i], cn: sentsRaw[i+1]});
                 }
-                return { w: p[0], pho: p[1], t: p[2], m: p[3], sentences: formattedSents };
-            }).filter(item => item !== null);
-        } catch(e) {
-            alert("資料庫解析錯誤: " + e.message);
+                return {
+                    id: p[1], // 單字當ID
+                    icon: p[0], word: p[1], pho: p[2], type: p[3], mean: p[4],
+                    sentences: sents, status: 'new'
+                };
+            }).filter(c => c !== null);
         }
 
-        // 遊戲核心
-        const GRID = 15;
-        const TILE = 6.666;
-        const STATE = { lv:1, hp:3, key:0, pause:false, score:0, range:2 };
-        let map=[], enemies=[], bombs=[], player={gx:1,gy:1}, curQ=null, pendingBomb=null;
-        const input = {u:false,d:false,l:false,r:false};
-
-        const dom = {
-            grid: document.getElementById('layer-grid'),
-            item: document.getElementById('layer-item'),
-            obj: document.getElementById('layer-obj'),
-            ent: document.getElementById('layer-ent'),
-            player: document.getElementById('player'),
-            quiz: document.getElementById('quiz-layer'),
-            hud: { hp: document.getElementById('ui-hp'), lv: document.getElementById('ui-lv'), key: document.getElementById('ui-key'), score: document.getElementById('ui-score') },
-            q: { w: document.getElementById('q-w'), p: document.getElementById('q-p'), t: document.getElementById('q-t'), box: document.getElementById('opt-box') },
-            learn: document.getElementById('learn-area'),
-            learnContent: document.getElementById('sent-content'),
-            closeBtn: document.getElementById('close-quiz-btn')
-        };
-
-        function init() { startLevel(1); loop(); }
-
-        function startLevel(lv) {
-            STATE.lv=lv; STATE.key=0; STATE.pause=false; STATE.range=2+Math.floor(lv/3);
-            dom.grid.innerHTML=''; dom.item.innerHTML=''; dom.obj.innerHTML=''; dom.ent.innerHTML='';
-            bombs=[]; enemies=[]; map=[];
-
-            for(let y=0; y<GRID; y++) {
-                let row = [];
-                for(let x=0; x<GRID; x++) {
-                    const el=document.createElement('div'); el.className='cell';
-                    el.style.left=(x*TILE)+'%'; el.style.top=(y*TILE)+'%'; el.id=`c-${x}-${y}`;
-                    if(x===0||x===GRID-1||y===0||y===GRID-1||(x%2===0&&y%2===0)) { row.push(1); el.classList.add('wall'); }
-                    else if(x<3&&y<3) { row.push(0); }
-                    else { if(Math.random()<0.3) { row.push(2); el.classList.add('brick'); } else row.push(0); }
-                    dom.grid.appendChild(el);
-                }
-                map.push(row);
-            }
-
-            let bricks=[]; for(let y=0; y<GRID; y++) for(let x=0; x<GRID; x++) if(map[y][x]===2) bricks.push({x,y});
-            if(bricks.length>2) {
-                let k=bricks.splice(Math.floor(Math.random()*bricks.length),1)[0]; map[k.y][k.x]=-4;
-                let d=bricks.splice(Math.floor(Math.random()*bricks.length),1)[0]; map[d.y][d.x]=-3;
-            }
-
-            const count=2+Math.floor(lv/2);
-            for(let i=0; i<count; i++) {
-                let x,y; do{x=Math.floor(Math.random()*GRID); y=Math.floor(Math.random()*GRID);} while(map[y][x]!==0 || (x<5&&y<5));
-                const el=document.createElement('div'); el.className='enemy'; el.innerText=['🦠','👿','👻'][i%3];
-                dom.ent.appendChild(el);
-                enemies.push({x,y,el,timer:0,speed:Math.max(10,40-lv*2)});
-            }
-            updateHUD(); player.gx=1; player.gy=1; updatePlayer();
-        }
-
-        function loop() {
-            if(!STATE.pause) { movePlayer(); moveEnemies(); updateBombs(); }
-            requestAnimationFrame(loop);
-        }
-
-        let cd=0;
-        function movePlayer() {
-            if(cd>0) {cd--; return;}
-            let dx=0,dy=0;
-            if(input.u) dy=-1; else if(input.d) dy=1; else if(input.l) dx=-1; else if(input.r) dx=1;
-            if(dx||dy) {
-                let nx=player.gx+dx, ny=player.gy+dy;
-                // 核心邊界檢查
-                if(nx<0||nx>=GRID||ny<0||ny>=GRID) return;
-                let cell=map[ny][nx];
-                let bomb=bombs.find(b=>b.x===nx && b.y===ny && !b.pass);
-                if((cell<=0||cell===3||cell===4) && !bomb) {
-                    player.gx=nx; player.gy=ny; updatePlayer(); checkItem(); cd=5;
-                    bombs.forEach(b=>{if(b.x!==player.gx||b.y!==player.gy) b.pass=false;});
-                }
-            }
-        }
-        function updatePlayer() { dom.player.style.left=(player.gx*TILE)+'%'; dom.player.style.top=(player.gy*TILE)+'%'; }
-
-        function moveEnemies() {
-            enemies.forEach(e=>{
-                if(e.x===player.gx && e.y===player.gy) hitPlayer();
-                if(e.timer>0) {e.timer--; return;}
-                e.timer=e.speed;
-                const dirs=[[0,1],[0,-1],[1,0],[-1,0]];
-                let moved=false, tries=0;
-                while(!moved && tries<4) {
-                    let d=dirs[Math.floor(Math.random()*4)];
-                    let nx=e.x+d[0], ny=e.y+d[1];
-                    if(nx>=0&&nx<GRID&&ny>=0&&ny<GRID) {
-                        if(map[ny][nx]<=0 && !bombs.find(b=>b.x===nx&&b.y===ny)) {
-                            e.x=nx; e.y=ny; e.el.style.left=(e.x*TILE)+'%'; e.el.style.top=(e.y*TILE)+'%'; moved=true;
-                        }
-                    }
-                    tries++;
-                }
-                if(e.x===player.gx && e.y===player.gy) hitPlayer();
-            });
-        }
-        function hitPlayer() { STATE.hp--; updateHUD(); if(STATE.hp<=0) { alert('Game Over!'); startLevel(STATE.lv); STATE.hp=3; updateHUD(); } }
-
-        function checkItem() {
-            let c=map[player.gy][player.gx];
-            if(c===4) { STATE.key=1; map[player.gy][player.gx]=0; document.getElementById(`item-${player.gx}-${player.gy}`).remove(); updateHUD(); }
-            else if(c===3 && STATE.key) { alert('Level Up!'); startLevel(STATE.lv+1); }
-        }
-
-        // 按下炸彈 -> 觸發答題 -> 答對 -> 產生炸彈
-        function tryPlaceBomb() {
-            if(STATE.pause) return;
-            if(bombs.find(b=>b.x===player.gx && b.y===player.gy)) return;
+        // --- 4. 遊戲邏輯 ---
+        function nextCard() {
+            // 挑選未學會的
+            const pool = cards.filter(c => c.status !== 'mastered');
             
-            // 紀錄想放炸彈的位置
-            pendingBomb = { x: player.gx, y: player.gy };
-            triggerQuiz();
-        }
-
-        function spawnBomb() {
-            const el=document.createElement('div'); el.className='bomb';
-            el.style.left=(pendingBomb.x*TILE)+'%'; el.style.top=(pendingBomb.y*TILE)+'%';
-            dom.obj.appendChild(el);
-            // 2秒後爆炸
-            bombs.push({x:pendingBomb.x, y:pendingBomb.y, el:el, tick:120, pass:true});
-        }
-
-        function updateBombs() {
-            for(let i=bombs.length-1; i>=0; i--) {
-                let b=bombs[i]; if(!STATE.pause) b.tick--;
-                if(b.tick<=0) { explode(b); bombs.splice(i,1); }
-            }
-        }
-
-        function explode(b) {
-            b.el.remove();
-            let hits=[{x:b.x, y:b.y}];
-            [[0,1],[0,-1],[1,0],[-1,0]].forEach(d=>{
-                for(let i=1; i<=STATE.range; i++) {
-                    let nx=b.x+d[0]*i, ny=b.y+d[1]*i;
-                    if(nx<0||nx>=GRID||ny<0||ny>=GRID) break;
-                    if(map[ny][nx]===1) break;
-                    hits.push({x:nx, y:ny});
-                    if(map[ny][nx]===2 || map[ny][nx]<0) { breakBrick(nx,ny); break; }
+            if (pool.length === 0) {
+                if(confirm("恭喜！全部單字都熟記了！要重置進度嗎？")) {
+                    localStorage.clear();
+                    location.reload();
                 }
-            });
-            hits.forEach(h=>{
-                const f=document.createElement('div'); f.className='fire';
-                f.style.left=(h.x*TILE)+'%'; f.style.top=(h.y*TILE)+'%';
-                dom.obj.appendChild(f); setTimeout(()=>f.remove(), 500);
-                if(player.gx===h.x && player.gy===h.y) hitPlayer();
-                for(let i=enemies.length-1; i>=0; i--) { if(enemies[i].x===h.x && enemies[i].y===h.y) { enemies[i].el.remove(); enemies.splice(i,1); }}
-            });
+                return;
+            }
+
+            // 隨機選字
+            currentCard = pool[Math.floor(Math.random() * pool.length)];
+            renderCard(currentCard);
         }
 
-        function breakBrick(x,y) {
-            const el=document.getElementById(`c-${x}-${y}`); el.className='cell';
-            if(map[y][x]===-4) { map[y][x]=4; const i=document.createElement('div'); i.className='cell key'; i.innerText='🔑'; i.id=`item-${x}-${y}`; i.style.left=(x*TILE)+'%'; i.style.top=(y*TILE)+'%'; dom.item.appendChild(i); }
-            else if(map[y][x]===-3) { map[y][x]=3; el.classList.add('door'); el.innerText='🚪'; }
-            else map[y][x]=0;
-        }
+        function renderCard(c) {
+            // 重置翻面
+            isFlipped = false;
+            document.getElementById('card').classList.remove('flipped');
+            document.body.classList.remove('flipped-mode');
 
-        function triggerQuiz() {
-            STATE.pause=true; dom.quiz.style.display='flex';
-            dom.learn.style.display='none'; dom.closeBtn.style.display='none'; dom.q.box.style.display='grid';
-            
-            const q = DB[Math.floor(Math.random()*DB.length)]; curQ=q;
-            dom.q.w.innerText=q.w; dom.q.p.innerText=q.pho; dom.q.t.innerText=q.t; 
-            
-            let opts=[q.m]; while(opts.length<4) { let r=DB[Math.floor(Math.random()*DB.length)].m; if(!opts.includes(r)) opts.push(r); }
-            opts.sort(()=>Math.random()-0.5);
-            
-            dom.q.box.innerHTML='';
-            opts.forEach(o=>{
-                const b=document.createElement('div'); b.className='opt-btn'; b.innerText=o;
-                b.onclick=()=>check(o,b); dom.q.box.appendChild(b);
-            });
-            speak('word');
-        }
+            // 填正面
+            document.getElementById('f-icon').innerText = c.icon;
+            document.getElementById('f-word').innerText = c.word;
+            document.getElementById('f-pho').innerText = c.pho;
 
-        function check(ans, btn) {
-            if(ans===curQ.m) {
-                btn.classList.add('correct');
-                STATE.score += 10; updateHUD();
-                
-                // ★ 答對後顯示學習卡 ★
-                dom.q.box.style.display='none';
-                dom.learn.style.display='block';
-                dom.closeBtn.style.display='block';
-                
-                let html = '';
-                curQ.sentences.forEach(s => {
-                    html += `<div class="sent-row"><div class="en-text">${s.en}</div><div class="cn-text">${s.cn}</div></div>`;
+            // 填背面
+            document.getElementById('b-word').innerText = c.word;
+            document.getElementById('b-pho').innerText = c.pho;
+            document.getElementById('b-type').innerText = c.type;
+            document.getElementById('b-mean').innerText = c.mean;
+
+            // 填例句
+            const list = document.getElementById('sent-list');
+            list.innerHTML = '';
+            if(c.sentences.length > 0) {
+                c.sentences.forEach(s => {
+                    list.innerHTML += `
+                        <div class="col-box">
+                            <div class="col-en">${s.en}</div>
+                            <div class="col-cn">${s.cn}</div>
+                        </div>
+                    `;
                 });
-                dom.learnContent.innerHTML = html;
-                
-                speak('sent');
             } else {
-                btn.classList.add('wrong'); speakText("Try again");
+                list.innerHTML = '<div style="color:#aaa; padding:10px;">暫無例句</div>';
             }
+
+            // 自動朗讀單字 (正面)
+            setTimeout(() => speak('word'), 300);
         }
 
-        function confirmLearn() {
-            dom.quiz.style.display='none'; STATE.pause=false;
-            spawnBomb(); // 按下確認後才生成炸彈
+        function flipCard() {
+            if(isFlipped) return;
+            isFlipped = true;
+            document.getElementById('card').classList.add('flipped');
+            document.body.classList.add('flipped-mode');
         }
 
-        function updateHUD() { dom.hud.hp.innerText=STATE.hp; dom.hud.lv.innerText=STATE.lv; dom.hud.key.innerText=STATE.key; dom.hud.score.innerText=STATE.score; }
-        
+        function handleResult(isMastered) {
+            if (!currentCard) return;
+            if (isMastered) {
+                currentCard.status = 'mastered';
+                learnedCount++;
+            } else {
+                currentCard.status = 'learning';
+            }
+            saveProgress();
+            updateUI();
+            setTimeout(nextCard, 250);
+        }
+
+        // --- 5. 語音功能 ---
         function speak(type) {
             window.speechSynthesis.cancel();
             let txt = "";
-            if(type==='word') txt = curQ.w;
-            else if(type==='sent') curQ.sentences.forEach(s => txt += s.en + ". ");
-            const u=new SpeechSynthesisUtterance(txt); u.lang='en-US'; window.speechSynthesis.speak(u);
+            if (type === 'word') txt = currentCard.word;
+            else if (type === 'sent') {
+                currentCard.sentences.forEach(s => txt += s.en + ". ");
+            }
+            const u = new SpeechSynthesisUtterance(txt);
+            u.lang = 'en-US';
+            window.speechSynthesis.speak(u);
         }
-        function speakText(t) { const u=new SpeechSynthesisUtterance(t); u.lang='en-US'; window.speechSynthesis.speak(u); }
 
-        window.onkeydown=e=>{if(e.key.includes('Arrow')) input[e.key[5].toLowerCase()]=true; if(e.key==' ') tryPlaceBomb();}
-        window.onkeyup=e=>{if(e.key.includes('Arrow')) input[e.key[5].toLowerCase()]=false;}
+        // --- 6. 介面更新與存檔 ---
+        function updateUI() {
+            const total = cards.length;
+            const remaining = total - learnedCount;
+            const pct = Math.floor((learnedCount / total) * 100);
+            
+            document.getElementById('txt-left').innerText = `待學: ${remaining}`;
+            document.getElementById('txt-done').innerText = `熟記: ${learnedCount}`;
+            document.getElementById('progress-fill').style.width = pct + "%";
+        }
 
-        init();
+        function saveProgress() {
+            const data = { masteredIds: cards.filter(c => c.status === 'mastered').map(c => c.id) };
+            localStorage.setItem('toeic_flashcard_v14', JSON.stringify(data));
+        }
+
+        function loadProgress() {
+            const saveStr = localStorage.getItem('toeic_flashcard_v14');
+            if (saveStr) {
+                const data = JSON.parse(saveStr);
+                const ids = data.masteredIds || [];
+                cards.forEach(c => { if (ids.includes(c.id)) c.status = 'mastered'; });
+                learnedCount = ids.length;
+            }
+        }
     </script>
 </body>
 </html>
